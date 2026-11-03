@@ -1,0 +1,55 @@
+# Infrastructure only. The Django API, Hatchet worker and Vite+ dev server run on your
+# machine (see README.md) so you get fast reloads and easy debugging. No Redis here:
+# nothing needs a cache or channel layer, and Hatchet uses Postgres as its queue.
+# Host ports are offset from the usual defaults so this can run next to other projects.
+name: rent-tracker
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: rent
+      POSTGRES_PASSWORD: rent
+      POSTGRES_DB: rent
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      # Creates the separate `hatchet` database on first boot.
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rent -d rent"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Hatchet engine + API + dashboard in one container, using Postgres as its message
+  # queue (no RabbitMQ). Dashboard: http://localhost:8890
+  hatchet:
+    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.110.5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8890:8888" # dashboard + REST API
+      - "7079:7077" # gRPC: workers and SDK clients connect here
+    environment:
+      DATABASE_URL: postgresql://rent:rent@postgres:5432/hatchet?sslmode=disable
+      RABBITMQ_ENABLED: "false"
+      SERVER_MSGQUEUE_KIND: postgres
+      SERVER_AUTH_COOKIE_DOMAIN: localhost
+      SERVER_AUTH_COOKIE_INSECURE: "t"
+      SERVER_AUTH_SET_EMAIL_VERIFIED: "t"
+      SERVER_GRPC_BIND_ADDRESS: "0.0.0.0"
+      SERVER_GRPC_INSECURE: "t"
+      SERVER_GRPC_PORT: "7077"
+      SERVER_GRPC_BROADCAST_ADDRESS: localhost:7079
+      SERVER_INTERNAL_CLIENT_INTERNAL_GRPC_BROADCAST_ADDRESS: localhost:7077
+      SERVER_URL: http://localhost:8890
+      SERVER_DEFAULT_ENGINE_VERSION: V1
+    volumes:
+      - hatchet_config:/config
+
+volumes:
+  postgres_data:
+  hatchet_config:
