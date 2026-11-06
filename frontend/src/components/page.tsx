@@ -1,28 +1,30 @@
 import type { ReactNode } from "react";
 
+import { FilterBar } from "@/components/filter-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
+/** A screen's body. The header above it shows the route's name; `filters` adds the filter bar. */
 export function Page({
-  title,
   description,
   actions,
+  filters,
   children,
 }: {
-  title: string;
   description?: string;
   actions?: ReactNode;
+  filters?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] gap-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+      {(description || actions) && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          {actions && <div className="ml-auto flex flex-wrap gap-2">{actions}</div>}
         </div>
-        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-      </div>
+      )}
+      {filters && <FilterBar />}
       {children}
     </div>
   );

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
@@ -28,6 +28,7 @@ import {
 import { useFilters } from "@/stores/filters";
 
 export const Route = createFileRoute("/_app/charges/")({
+  staticData: { title: "Rates & taxes" },
   component: ChargesPage,
 });
 
@@ -61,6 +62,7 @@ function ChargesPage() {
   const save = useSave<Record<string, unknown> & { id?: number }>("charges", "Charge");
   const remove = useRemove("charges", "Charge");
   const { form, set, editing } = dialog;
+  const navigate = useNavigate();
 
   const total = rows?.reduce((s, r) => s + r.amount, 0) ?? 0;
   const byCategory = new Map<ChargeCategory, number>();
@@ -84,7 +86,7 @@ function ChargesPage() {
 
   return (
     <Page
-      title="Rates & taxes"
+      filters
       description="What the municipality (or body corporate) bills each unit per month."
       actions={
         <Button
@@ -141,7 +143,14 @@ function ChargesPage() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer"
-                  onClick={() => dialog.openEdit(row)}
+                  onClick={() =>
+                    row.bill
+                      ? void navigate({
+                          to: "/bills/$billId",
+                          params: { billId: String(row.bill) },
+                        })
+                      : dialog.openEdit(row)
+                  }
                 >
                   <TableCell>{formatMonth(row.period)}</TableCell>
                   <TableCell className="max-w-24 truncate sm:max-w-40">
@@ -156,6 +165,15 @@ function ChargesPage() {
                         title="Linked to a payment in Expense tracking"
                       >
                         Paid
+                      </Badge>
+                    )}{" "}
+                    {row.bill && (
+                      <Badge
+                        variant="secondary"
+                        className="align-top"
+                        title="Comes from a municipal bill. Click to open the bill."
+                      >
+                        Bill
                       </Badge>
                     )}
                   </TableCell>

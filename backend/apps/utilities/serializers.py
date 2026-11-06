@@ -23,7 +23,9 @@ class UtilityReadingSerializer(serializers.ModelSerializer):
             "usage",
             "cost",
             "notes",
+            "bill",
         ]
+        read_only_fields = ["bill"]
         validators = [
             UniqueTogetherValidator(
                 queryset=UtilityReading.objects.all(),
@@ -55,7 +57,9 @@ class MunicipalChargeSerializer(serializers.ModelSerializer):
             "description",
             "transaction",
             "notes",
+            "bill",
         ]
+        read_only_fields = ["bill"]
 
     def validate_period(self, value):
         return _first_of_month(value)

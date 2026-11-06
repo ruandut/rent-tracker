@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Droplets, Plus, Zap } from "lucide-react";
 import { useState } from "react";
 
 import { CrudDialog, useCrudDialog } from "@/components/crud-dialog";
 import { Field, NativeSelect } from "@/components/form";
 import { EmptyState, flexCell, Page, Stat, TableSkeleton } from "@/components/page";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { useFilters } from "@/stores/filters";
 
 export const Route = createFileRoute("/_app/utilities/")({
+  staticData: { title: "Water & electricity" },
   component: UtilitiesPage,
 });
 
@@ -42,7 +44,7 @@ const toForm = (row?: UtilityReading): Form => ({
   kind: row?.kind ?? "water",
   month: row ? row.period.slice(0, 7) : thisMonth(),
   meter_reading: row?.meter_reading != null ? String(row.meter_reading) : "",
-  usage: row ? String(row.usage) : "",
+  usage: row?.usage != null ? String(row.usage) : "",
   cost: row?.cost != null ? String(row.cost) : "",
   notes: row?.notes ?? "",
 });
@@ -58,11 +60,13 @@ function UtilitiesPage() {
   const save = useSave<Record<string, unknown> & { id?: number }>("readings", "Reading");
   const remove = useRemove("readings", "Reading");
   const { form, set, editing } = dialog;
+  const navigate = useNavigate();
   const meta = UTILITY_KINDS[kind];
 
-  const totalUsage = rows?.reduce((s, r) => s + r.usage, 0) ?? 0;
+  const measured = rows?.filter((r) => r.usage != null) ?? [];
+  const totalUsage = measured.reduce((s, r) => s + (r.usage ?? 0), 0);
   const totalCost = rows?.reduce((s, r) => s + (r.cost ?? 0), 0) ?? 0;
-  const months = new Set(rows?.map((r) => r.period)).size;
+  const months = new Set(measured.map((r) => r.period)).size;
 
   const submit = () =>
     save.mutate(
@@ -81,7 +85,7 @@ function UtilitiesPage() {
 
   return (
     <Page
-      title="Water & electricity"
+      filters
       description="Monthly usage per unit, from the municipal bill or your own meter readings."
       actions={
         <Button
@@ -111,13 +115,13 @@ function UtilitiesPage() {
         />
         <Stat
           label="Average per month"
-          value={`${formatNumber(rows?.length ? totalUsage / rows.length : 0)} ${meta.unit}`}
+          value={`${formatNumber(measured.length ? totalUsage / measured.length : 0)} ${meta.unit}`}
           hint={`Per unit, per month · ${months} months`}
         />
         <Stat label="Total cost" value={formatMoney(totalCost)} tone="out" />
       </div>
 
-      {rows && rows.length > 0 && <UsageBars rows={rows} kind={kind} />}
+      {measured.length > 0 && <UsageBars rows={measured} kind={kind} />}
 
       {isPending && !rows ? (
         <TableSkeleton />
@@ -138,15 +142,33 @@ function UtilitiesPage() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer"
-                  onClick={() => dialog.openEdit(row)}
+                  onClick={() =>
+                    row.bill
+                      ? void navigate({
+                          to: "/bills/$billId",
+                          params: { billId: String(row.bill) },
+                        })
+                      : dialog.openEdit(row)
+                  }
                 >
                   <TableCell>{formatMonth(row.period)}</TableCell>
-                  <TableCell className={flexCell}>{row.rental_unit_name}</TableCell>
+                  <TableCell className={flexCell}>
+                    {row.rental_unit_name}{" "}
+                    {row.bill && (
+                      <Badge
+                        variant="secondary"
+                        className="align-top"
+                        title="Comes from a municipal bill. Click to open the bill."
+                      >
+                        Bill
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">
                     {row.meter_reading != null ? formatNumber(row.meter_reading) : "—"}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
-                    {formatNumber(row.usage)} {meta.unit}
+                    {row.usage != null ? `${formatNumber(row.usage)} ${meta.unit}` : "—"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {row.cost != null ? formatMoney(row.cost) : "—"}
@@ -263,7 +285,8 @@ function UtilitiesPage() {
 /** Usage per month (summed across the units in view), oldest first. */
 function UsageBars({ rows, kind }: { rows: UtilityReading[]; kind: UtilityKind }) {
   const byMonth = new Map<string, number>();
-  for (const row of rows) byMonth.set(row.period, (byMonth.get(row.period) ?? 0) + row.usage);
+  for (const row of rows)
+    byMonth.set(row.period, (byMonth.get(row.period) ?? 0) + (row.usage ?? 0));
   const months = [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b));
   const max = Math.max(...months.map(([, v]) => v), 1);
   const color = kind === "water" ? "bg-sky-500" : "bg-amber-500";

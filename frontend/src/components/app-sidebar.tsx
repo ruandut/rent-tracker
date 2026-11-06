@@ -9,7 +9,9 @@ import {
   Home,
   Landmark,
   LayoutDashboard,
+  LayoutTemplate,
   LogOut,
+  ReceiptText,
   Send,
   Tags,
   Users,
@@ -46,11 +48,13 @@ const MONEY: NavItem[] = [
   { to: "/transactions", label: "Expense tracking", icon: ArrowLeftRight },
 ];
 const PROPERTY: NavItem[] = [
+  { to: "/bills", label: "Municipal bills", icon: ReceiptText },
   { to: "/utilities", label: "Water & electricity", icon: Droplets },
   { to: "/charges", label: "Rates & taxes", icon: Landmark },
   { to: "/units", label: "Rental units", icon: Building2 },
 ];
 const SETUP: NavItem[] = [
+  { to: "/templates", label: "Municipal templates", icon: LayoutTemplate },
   { to: "/payment-methods", label: "Payment methods", icon: CreditCard },
   { to: "/beneficiaries", label: "Beneficiaries", icon: Users },
   { to: "/tags", label: "Tags", icon: Tags },

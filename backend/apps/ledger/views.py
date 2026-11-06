@@ -48,10 +48,11 @@ class ProtectedDestroyMixin:
 # queryset below orders explicitly.
 
 
-class RentalUnitViewSet(viewsets.ModelViewSet):
+class RentalUnitViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
     """Units with income/expense totals inside the active date range."""
 
     serializer_class = RentalUnitSerializer
+    protected_message = "This unit has municipal bills. Mark it inactive instead."
 
     def get_queryset(self):
         f = RangeFilter.from_request(self.request)

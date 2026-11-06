@@ -29,8 +29,9 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.jobs",
-    # Domain apps. utilities may import from ledger, never the other way round.
+    # Domain apps. Imports run one way: utilities -> bills -> ledger.
     "apps.ledger",
+    "apps.bills",
     "apps.utilities",
     "apps.notifications",
 ]

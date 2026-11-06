@@ -21,7 +21,12 @@ function describe(body: unknown): string | null {
   const entries = Object.entries(body as Record<string, unknown>);
   for (const [field, value] of entries) {
     const text = Array.isArray(value) ? value[0] : value;
-    if (typeof text !== "string") continue;
+    if (typeof text !== "string") {
+      // Nested serializers report per-row errors, e.g. {lines: [{}, {usage: ["…"]}]}.
+      const nested = describe(value);
+      if (nested) return nested;
+      continue;
+    }
     return field === "detail" || field === "non_field_errors"
       ? text
       : `${field.replaceAll("_", " ")}: ${text}`;
@@ -29,11 +34,12 @@ function describe(body: unknown): string | null {
   return null;
 }
 
-/** fetch() for /api/* with the JWT attached and one transparent refresh on 401. */
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function authedFetch(path: string, init: RequestInit): Promise<Response> {
   const send = (token: string | null) => {
     const headers = new Headers(init.headers);
-    if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    // The browser sets a FormData body's Content-Type itself, including the boundary.
+    if (!headers.has("Content-Type") && !(init.body instanceof FormData))
+      headers.set("Content-Type", "application/json");
     if (token) headers.set("Authorization", `Bearer ${token}`);
     return fetch(path, { ...init, headers });
   };
@@ -47,9 +53,22 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     useAuth.getState().clear();
     window.location.assign("/login");
   }
+  return res;
+}
+
+/** fetch() for /api/* with the JWT attached and one transparent refresh on 401. */
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await authedFetch(path, init);
   const body = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, body);
   return body as T;
+}
+
+/** A file from the API. Plain links can't carry the JWT, so files come through fetch. */
+export async function apiBlob(path: string): Promise<Blob> {
+  const res = await authedFetch(path, {});
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
+  return res.blob();
 }
 
 const withParams = (path: string, params: Record<string, string>) => {

@@ -20,6 +20,7 @@ import { useList, useRemove, useSave } from "@/lib/api";
 import type { Beneficiary } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/beneficiaries/")({
+  staticData: { title: "Beneficiaries" },
   component: BeneficiariesPage,
 });
 
@@ -40,7 +41,7 @@ function BeneficiariesPage() {
 
   return (
     <Page
-      title="Beneficiaries"
+      filters
       description="People payments go to, like a share of the rent. Totals follow the filters."
       actions={
         <Button onClick={() => dialog.openNew()}>

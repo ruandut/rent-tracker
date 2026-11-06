@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from rest_framework.exceptions import ValidationError
 
 from apps.core.filters import RangeFilter
 
@@ -18,6 +19,18 @@ class RangeFilteredViewSet(viewsets.ModelViewSet):
         if f.date_from:
             f = RangeFilter(f.date_from.replace(day=1), f.date_to, f.unit)
         return qs.filter(f.q(date_field="period"))
+
+    def _reject_if_from_bill(self, instance):
+        if instance.bill_id:
+            raise ValidationError({"detail": "This came from a municipal bill. Edit the bill."})
+
+    def perform_update(self, serializer):
+        self._reject_if_from_bill(serializer.instance)
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        self._reject_if_from_bill(instance)
+        super().perform_destroy(instance)
 
 
 class UtilityReadingViewSet(RangeFilteredViewSet):

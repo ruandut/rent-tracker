@@ -21,6 +21,7 @@ import type { Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/tags/")({
+  staticData: { title: "Tags" },
   component: TagsPage,
 });
 
@@ -37,7 +38,7 @@ function TagsPage() {
 
   return (
     <Page
-      title="Tags"
+      filters
       description="Label transactions to see where the money goes. Totals follow the filters."
       actions={
         <Button onClick={() => dialog.openNew()}>

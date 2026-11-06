@@ -101,7 +101,7 @@ function ToInput(props: Pick<ComponentProps<"input">, "id" | "className">) {
 function InlineFilter() {
   const { filters } = useFilterState();
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border p-2">
       <CalendarRange className="size-4 text-muted-foreground" />
       <PresetSelect className="w-auto" />
       {filters.preset !== "all" && (
@@ -144,7 +144,7 @@ function MobileFilter() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Filters</DialogTitle>
-            <DialogDescription>These apply to every screen.</DialogDescription>
+            <DialogDescription>These apply to every screen with filters.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <Field label="Date range" htmlFor="filter-preset">

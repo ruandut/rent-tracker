@@ -14,6 +14,7 @@ import { PAYMENT_METHOD_KINDS, type PaymentMethod, type PaymentMethodKind } from
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/payment-methods/")({
+  staticData: { title: "Payment methods" },
   component: PaymentMethodsPage,
 });
 
@@ -54,7 +55,7 @@ function PaymentMethodsPage() {
 
   return (
     <Page
-      title="Payment methods"
+      filters
       description="The cards and accounts money moves through. Balance is all-time; in/out follow the filters."
       actions={
         <Button onClick={() => dialog.openNew()}>

@@ -19,6 +19,7 @@ import type { Beneficiary, PaymentMethod, Tag, Transaction } from "@/lib/types";
 import { useFilters } from "@/stores/filters";
 
 export const Route = createFileRoute("/_app/transactions/")({
+  staticData: { title: "Expense tracking" },
   component: TransactionsPage,
 });
 
@@ -56,7 +57,7 @@ function TransactionsPage() {
 
   return (
     <Page
-      title="Expense tracking"
+      filters
       description="Every rand in and out of the rental account."
       actions={
         <>

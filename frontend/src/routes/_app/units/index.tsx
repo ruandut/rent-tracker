@@ -21,6 +21,7 @@ import { useList, useRemove, useSave } from "@/lib/api";
 import type { RentalUnit } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/units/")({
+  staticData: { title: "Rental units" },
   component: UnitsPage,
 });
 
@@ -42,7 +43,7 @@ function UnitsPage() {
 
   return (
     <Page
-      title="Rental units"
+      filters
       description="The properties you rent out. In/out totals follow the date filter."
       actions={
         <Button onClick={() => dialog.openNew()}>

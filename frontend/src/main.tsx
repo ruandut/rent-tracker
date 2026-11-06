@@ -23,6 +23,10 @@ const router = createRouter({
 });
 
 declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    /** The name shown in the header on this screen. */
+    title?: string;
+  }
   interface Register {
     router: typeof router;
   }

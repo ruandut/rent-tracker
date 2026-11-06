@@ -34,3 +34,15 @@ export function toIso(date: Date): string {
 
 export const today = () => toIso(new Date());
 export const thisMonth = () => today().slice(0, 7);
+
+/**
+ * An amount as a bill prints it → a plain number string, "" if it isn't one.
+ * "(R 1,638.50)" → "-1638.50": brackets mean a credit.
+ */
+export function parseBillAmount(text: string): string {
+  const trimmed = text.trim();
+  const negative = trimmed.startsWith("(") || trimmed.startsWith("-") || trimmed.startsWith("−");
+  const digits = trimmed.replace(/[^\d.]/g, "");
+  if (!digits || Number.isNaN(Number(digits))) return "";
+  return negative ? `-${digits}` : digits;
+}

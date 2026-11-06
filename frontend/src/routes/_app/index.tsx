@@ -12,6 +12,7 @@ import { PAYMENT_METHOD_KINDS, type Dashboard } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/")({
+  staticData: { title: "Dashboard" },
   component: DashboardPage,
 });
 
@@ -20,7 +21,7 @@ function DashboardPage() {
 
   if (!data) {
     return (
-      <Page title="Dashboard">
+      <Page filters>
         <div className="grid gap-4 sm:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
@@ -33,7 +34,7 @@ function DashboardPage() {
 
   const monthName = formatMonth(data.month.start);
   return (
-    <Page title="Dashboard" description="Where the rental money is, and where it went.">
+    <Page filters description="Where the rental money is, and where it went.">
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat
           label="Account balance"

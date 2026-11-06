@@ -124,14 +124,24 @@ router.
 | Beneficiaries | `/beneficiaries` | `/api/beneficiaries/` |
 | Tags (`maintenance` is a system tag: renameable, not deletable) | `/tags` | `/api/tags/` |
 | Scheduled summaries by email or Telegram | `/summaries` | `/api/notifications/` |
+| Municipal bills, line by line, with the raw bill | `/bills` | `/api/bills/` |
 
-- **Filters:** the date range + rental unit in the header apply to every screen. They live in a
+- **Filters:** the date range + rental unit show on the screens that use them, via `<Page filters>`,
+  and carry between those screens. They live in a
   persisted Zustand store (`frontend/src/stores/filters.ts`) and go to the API as
   `?date_from=&date_to=&unit=` (`backend/apps/core/filters.py`).
 - **Balances:** a payment method's balance is its opening balance plus all-time income minus
   expenses, so it ignores the filters; the in/out figures beside it respect them.
 - **Utility readings and charges** record what was billed. Paying the bill is still a
   transaction; a charge can point at the transaction that paid it.
+- **Municipal bills** are the source of truth for what they cover. One printed bill is split
+  between any number of rental units, each with its own lines. A template (Municipal templates
+  screen) defines a municipality's fields and services; a bill copies its template when logged, so
+  later template edits leave it alone. Saving one creates or updates
+  its rows in Water & electricity and Rates & taxes (at VAT-inclusive cost), and
+  those rows can only be changed on the bill. `apps.bills` knows nothing about `apps.utilities`:
+  it sends the `bill_saved` signal and `apps/utilities/services.py` does the syncing. Uploaded
+  files are stored in Postgres, so they need no media volume and stay behind the login.
 - **Hatchet:** apps expose tasks via `TASKS = [...]` in `apps/<app>/tasks.py`; `make worker` registers
   them. `send-due-summaries` runs every minute and sends any summary that's due. `ledger-ping` is
   a placeholder where email ingestion will go (`Transaction.source = "email"` is already reserved).

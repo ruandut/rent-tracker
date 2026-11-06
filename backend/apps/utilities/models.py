@@ -2,10 +2,14 @@
 
 These are records of what the municipality billed. Paying the bill is still a ledger
 Transaction; link it with `transaction` if you want the two tied together.
+
+A row with `bill` set was produced by that logged bill (see services.py) and is changed by
+editing the bill. Rows without it are entered by hand.
 """
 
 from django.db import models
 
+from apps.bills.models import Bill
 from apps.ledger.models import RentalUnit, Transaction
 
 
@@ -25,9 +29,15 @@ class UtilityReading(models.Model):
     # Always the 1st of the month the usage belongs to.
     period = models.DateField()
     meter_reading = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    usage = models.DecimalField(max_digits=12, decimal_places=2, help_text="kL or kWh")
+    # Empty when the cost is known but the usage isn't, as on a prepaid electricity bill.
+    usage = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, help_text="kL or kWh"
+    )
     cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     notes = models.TextField(blank=True)
+    bill = models.ForeignKey(
+        Bill, on_delete=models.CASCADE, null=True, blank=True, related_name="readings"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -64,6 +74,9 @@ class MunicipalCharge(models.Model):
         Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name="charges"
     )
     notes = models.TextField(blank=True)
+    bill = models.ForeignKey(
+        Bill, on_delete=models.CASCADE, null=True, blank=True, related_name="charges"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

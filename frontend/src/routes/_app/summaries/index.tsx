@@ -29,6 +29,7 @@ import {
 } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/summaries/")({
+  staticData: { title: "Summaries" },
   component: SummariesPage,
 });
 
@@ -61,7 +62,6 @@ function SummariesPage() {
 
   return (
     <Page
-      title="Summaries"
       description="Get the account balance and totals to date, by email or Telegram, on a schedule."
       actions={
         <Button onClick={() => dialog.openNew()}>

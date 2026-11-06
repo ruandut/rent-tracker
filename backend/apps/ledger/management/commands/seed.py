@@ -13,6 +13,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from apps.bills.models import Bill
 from apps.ledger.models import Beneficiary, PaymentMethod, RentalUnit, Tag, Transaction
 from apps.utilities.models import MunicipalCharge, UtilityReading
 
@@ -59,6 +60,7 @@ class Command(BaseCommand):
         random.seed(42)
 
         if reset:
+            Bill.objects.all().delete()
             MunicipalCharge.objects.all().delete()
             UtilityReading.objects.all().delete()
             Transaction.objects.all().delete()

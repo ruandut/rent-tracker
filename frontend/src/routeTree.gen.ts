@@ -13,10 +13,16 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBeneficiariesIndexRouteImport } from './routes/_app/beneficiaries/index'
+import { Route as AppBillsIndexRouteImport } from './routes/_app/bills/index'
+import { Route as AppBillsBillIdRouteImport } from './routes/_app/bills/$billId'
+import { Route as AppBillsNewRouteImport } from './routes/_app/bills/new'
 import { Route as AppChargesIndexRouteImport } from './routes/_app/charges/index'
 import { Route as AppPaymentMethodsIndexRouteImport } from './routes/_app/payment-methods/index'
 import { Route as AppSummariesIndexRouteImport } from './routes/_app/summaries/index'
 import { Route as AppTagsIndexRouteImport } from './routes/_app/tags/index'
+import { Route as AppTemplatesIndexRouteImport } from './routes/_app/templates/index'
+import { Route as AppTemplatesTemplateIdRouteImport } from './routes/_app/templates/$templateId'
+import { Route as AppTemplatesNewRouteImport } from './routes/_app/templates/new'
 import { Route as AppTransactionsIndexRouteImport } from './routes/_app/transactions/index'
 import { Route as AppUnitsIndexRouteImport } from './routes/_app/units/index'
 import { Route as AppUtilitiesIndexRouteImport } from './routes/_app/utilities/index'
@@ -40,6 +46,21 @@ const AppBeneficiariesIndexRoute = AppBeneficiariesIndexRouteImport.update({
   path: '/beneficiaries/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBillsIndexRoute = AppBillsIndexRouteImport.update({
+  id: '/bills/',
+  path: '/bills/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBillsBillIdRoute = AppBillsBillIdRouteImport.update({
+  id: '/bills/$billId',
+  path: '/bills/$billId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBillsNewRoute = AppBillsNewRouteImport.update({
+  id: '/bills/new',
+  path: '/bills/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppChargesIndexRoute = AppChargesIndexRouteImport.update({
   id: '/charges/',
   path: '/charges/',
@@ -58,6 +79,21 @@ const AppSummariesIndexRoute = AppSummariesIndexRouteImport.update({
 const AppTagsIndexRoute = AppTagsIndexRouteImport.update({
   id: '/tags/',
   path: '/tags/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesIndexRoute = AppTemplatesIndexRouteImport.update({
+  id: '/templates/',
+  path: '/templates/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesTemplateIdRoute = AppTemplatesTemplateIdRouteImport.update({
+  id: '/templates/$templateId',
+  path: '/templates/$templateId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesNewRoute = AppTemplatesNewRouteImport.update({
+  id: '/templates/new',
+  path: '/templates/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTransactionsIndexRoute = AppTransactionsIndexRouteImport.update({
@@ -79,11 +115,17 @@ const AppUtilitiesIndexRoute = AppUtilitiesIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/bills/$billId': typeof AppBillsBillIdRoute
+  '/bills/new': typeof AppBillsNewRoute
+  '/templates/$templateId': typeof AppTemplatesTemplateIdRoute
+  '/templates/new': typeof AppTemplatesNewRoute
   '/beneficiaries/': typeof AppBeneficiariesIndexRoute
+  '/bills/': typeof AppBillsIndexRoute
   '/charges/': typeof AppChargesIndexRoute
   '/payment-methods/': typeof AppPaymentMethodsIndexRoute
   '/summaries/': typeof AppSummariesIndexRoute
   '/tags/': typeof AppTagsIndexRoute
+  '/templates/': typeof AppTemplatesIndexRoute
   '/transactions/': typeof AppTransactionsIndexRoute
   '/units/': typeof AppUnitsIndexRoute
   '/utilities/': typeof AppUtilitiesIndexRoute
@@ -91,11 +133,17 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
+  '/bills/$billId': typeof AppBillsBillIdRoute
+  '/bills/new': typeof AppBillsNewRoute
+  '/templates/$templateId': typeof AppTemplatesTemplateIdRoute
+  '/templates/new': typeof AppTemplatesNewRoute
   '/beneficiaries': typeof AppBeneficiariesIndexRoute
+  '/bills': typeof AppBillsIndexRoute
   '/charges': typeof AppChargesIndexRoute
   '/payment-methods': typeof AppPaymentMethodsIndexRoute
   '/summaries': typeof AppSummariesIndexRoute
   '/tags': typeof AppTagsIndexRoute
+  '/templates': typeof AppTemplatesIndexRoute
   '/transactions': typeof AppTransactionsIndexRoute
   '/units': typeof AppUnitsIndexRoute
   '/utilities': typeof AppUtilitiesIndexRoute
@@ -105,11 +153,17 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/bills/$billId': typeof AppBillsBillIdRoute
+  '/_app/bills/new': typeof AppBillsNewRoute
+  '/_app/templates/$templateId': typeof AppTemplatesTemplateIdRoute
+  '/_app/templates/new': typeof AppTemplatesNewRoute
   '/_app/beneficiaries/': typeof AppBeneficiariesIndexRoute
+  '/_app/bills/': typeof AppBillsIndexRoute
   '/_app/charges/': typeof AppChargesIndexRoute
   '/_app/payment-methods/': typeof AppPaymentMethodsIndexRoute
   '/_app/summaries/': typeof AppSummariesIndexRoute
   '/_app/tags/': typeof AppTagsIndexRoute
+  '/_app/templates/': typeof AppTemplatesIndexRoute
   '/_app/transactions/': typeof AppTransactionsIndexRoute
   '/_app/units/': typeof AppUnitsIndexRoute
   '/_app/utilities/': typeof AppUtilitiesIndexRoute
@@ -119,11 +173,17 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/bills/$billId'
+    | '/bills/new'
+    | '/templates/$templateId'
+    | '/templates/new'
     | '/beneficiaries/'
+    | '/bills/'
     | '/charges/'
     | '/payment-methods/'
     | '/summaries/'
     | '/tags/'
+    | '/templates/'
     | '/transactions/'
     | '/units/'
     | '/utilities/'
@@ -131,11 +191,17 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/'
+    | '/bills/$billId'
+    | '/bills/new'
+    | '/templates/$templateId'
+    | '/templates/new'
     | '/beneficiaries'
+    | '/bills'
     | '/charges'
     | '/payment-methods'
     | '/summaries'
     | '/tags'
+    | '/templates'
     | '/transactions'
     | '/units'
     | '/utilities'
@@ -144,11 +210,17 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/'
+    | '/_app/bills/$billId'
+    | '/_app/bills/new'
+    | '/_app/templates/$templateId'
+    | '/_app/templates/new'
     | '/_app/beneficiaries/'
+    | '/_app/bills/'
     | '/_app/charges/'
     | '/_app/payment-methods/'
     | '/_app/summaries/'
     | '/_app/tags/'
+    | '/_app/templates/'
     | '/_app/transactions/'
     | '/_app/units/'
     | '/_app/utilities/'
@@ -189,6 +261,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBeneficiariesIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/bills/': {
+      id: '/_app/bills/'
+      path: '/bills'
+      fullPath: '/bills/'
+      preLoaderRoute: typeof AppBillsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/bills/$billId': {
+      id: '/_app/bills/$billId'
+      path: '/bills/$billId'
+      fullPath: '/bills/$billId'
+      preLoaderRoute: typeof AppBillsBillIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/bills/new': {
+      id: '/_app/bills/new'
+      path: '/bills/new'
+      fullPath: '/bills/new'
+      preLoaderRoute: typeof AppBillsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/charges/': {
       id: '/_app/charges/'
       path: '/charges'
@@ -217,6 +310,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTagsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/templates/': {
+      id: '/_app/templates/'
+      path: '/templates'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof AppTemplatesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates/$templateId': {
+      id: '/_app/templates/$templateId'
+      path: '/templates/$templateId'
+      fullPath: '/templates/$templateId'
+      preLoaderRoute: typeof AppTemplatesTemplateIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates/new': {
+      id: '/_app/templates/new'
+      path: '/templates/new'
+      fullPath: '/templates/new'
+      preLoaderRoute: typeof AppTemplatesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/transactions/': {
       id: '/_app/transactions/'
       path: '/transactions'
@@ -243,11 +357,17 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppBillsBillIdRoute: typeof AppBillsBillIdRoute
+  AppBillsNewRoute: typeof AppBillsNewRoute
+  AppTemplatesTemplateIdRoute: typeof AppTemplatesTemplateIdRoute
+  AppTemplatesNewRoute: typeof AppTemplatesNewRoute
   AppBeneficiariesIndexRoute: typeof AppBeneficiariesIndexRoute
+  AppBillsIndexRoute: typeof AppBillsIndexRoute
   AppChargesIndexRoute: typeof AppChargesIndexRoute
   AppPaymentMethodsIndexRoute: typeof AppPaymentMethodsIndexRoute
   AppSummariesIndexRoute: typeof AppSummariesIndexRoute
   AppTagsIndexRoute: typeof AppTagsIndexRoute
+  AppTemplatesIndexRoute: typeof AppTemplatesIndexRoute
   AppTransactionsIndexRoute: typeof AppTransactionsIndexRoute
   AppUnitsIndexRoute: typeof AppUnitsIndexRoute
   AppUtilitiesIndexRoute: typeof AppUtilitiesIndexRoute
@@ -255,11 +375,17 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppBillsBillIdRoute: AppBillsBillIdRoute,
+  AppBillsNewRoute: AppBillsNewRoute,
+  AppTemplatesTemplateIdRoute: AppTemplatesTemplateIdRoute,
+  AppTemplatesNewRoute: AppTemplatesNewRoute,
   AppBeneficiariesIndexRoute: AppBeneficiariesIndexRoute,
+  AppBillsIndexRoute: AppBillsIndexRoute,
   AppChargesIndexRoute: AppChargesIndexRoute,
   AppPaymentMethodsIndexRoute: AppPaymentMethodsIndexRoute,
   AppSummariesIndexRoute: AppSummariesIndexRoute,
   AppTagsIndexRoute: AppTagsIndexRoute,
+  AppTemplatesIndexRoute: AppTemplatesIndexRoute,
   AppTransactionsIndexRoute: AppTransactionsIndexRoute,
   AppUnitsIndexRoute: AppUnitsIndexRoute,
   AppUtilitiesIndexRoute: AppUtilitiesIndexRoute,
