@@ -3,7 +3,10 @@ VP := $(shell command -v vp 2>/dev/null || echo $(CURDIR)/frontend/node_modules/
 # hatchet-lite's built-in default tenant.
 HATCHET_TENANT := 707d0855-80ab-4e1f-a156-f1c4546cbf52
 
-.PHONY: up down setup hatchet-token migrate seed reseed superuser api worker web test check
+.PHONY: compose up down setup hatchet-token migrate seed reseed superuser api worker web test check
+
+compose:       ## Generate the Compose file to copy to your server (asks for its IP etc.)
+	./scripts/generate_compose.sh
 
 up:            ## Start Postgres and Hatchet
 	docker compose up -d --wait

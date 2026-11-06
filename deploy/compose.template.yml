@@ -1,5 +1,5 @@
-# Stack for the UGOS Docker app: paste it in as a Project.
-# scripts/render_compose.sh fills in the __PLACEHOLDERS__. Only `web` publishes a port;
+# Template for scripts/generate_compose.sh, which fills in the placeholders. Copy the generated
+# file into your Docker app rather than this one. Only `web` publishes a port;
 # Postgres and Hatchet stay on the internal network.
 name: rent-tracker
 
@@ -11,15 +11,20 @@ x-logging: &default-logging
 
 x-app-env: &app-env
   DEBUG: "false"
-  DJANGO_SECRET_KEY: __DJANGO_SECRET_KEY__
+  DJANGO_SECRET_KEY: "__DJANGO_SECRET_KEY__"
   DATABASE_URL: postgres://rent:__POSTGRES_PASSWORD__@postgres:5432/rent
   ALLOWED_HOSTS: __HOST__,localhost
   CSRF_TRUSTED_ORIGINS: http://__HOST__:__PORT__
 
 x-app: &app
   image: rent-tracker:__TAG__
-  # Built on the NAS from the latest main on GitHub, on every deploy.
-  build: https://github.com/ruandut/rent-tracker.git#main
+  # Built on the server from the latest main on GitHub, on every deploy. An archive URL rather
+  # than a Git URL, because some hosts' Docker has no git.
+  build:
+    context: https://github.com/__REPO__/archive/refs/heads/main.tar.gz
+    dockerfile: __SRC__/Dockerfile
+    args:
+      SRC: __SRC__
   pull_policy: build
   restart: unless-stopped
   logging: *default-logging
@@ -33,7 +38,7 @@ services:
     logging: *default-logging
     environment:
       POSTGRES_USER: rent
-      POSTGRES_PASSWORD: __POSTGRES_PASSWORD__
+      POSTGRES_PASSWORD: "__POSTGRES_PASSWORD__"
       POSTGRES_DB: rent
     volumes:
       - postgres_data:/var/lib/postgresql
@@ -51,7 +56,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      PGPASSWORD: __POSTGRES_PASSWORD__
+      PGPASSWORD: "__POSTGRES_PASSWORD__"
     entrypoint:
       - sh
       - -c
@@ -112,8 +117,8 @@ services:
     environment:
       <<: *app-env
       # Only used to create the first login; changing them later does nothing.
-      ADMIN_USERNAME: __ADMIN_USERNAME__
-      ADMIN_PASSWORD: __ADMIN_PASSWORD__
+      ADMIN_USERNAME: "__ADMIN_USERNAME__"
+      ADMIN_PASSWORD: "__ADMIN_PASSWORD__"
     # Migrates and creates the first admin on every start; both are no-ops when nothing changed.
     command:
       - sh

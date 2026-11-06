@@ -44,21 +44,61 @@ make down      # stop Docker (data kept); `docker compose down -v` deletes it
 Ports are offset from the defaults so this runs next to other projects:
 Postgres `5434`, Hatchet dashboard `8890` (login `admin@example.com` / `Admin123!!`), Hatchet gRPC `7079`.
 
-## Deploying to the UGREEN NAS
+## Deploying to your own server
 
-The NAS builds the image itself from `main` on GitHub, so changes must be pushed to deploy. Only
-`web` is reachable from the network, on port 8010; Django serves the API and the built frontend.
+Works on any machine with a Docker app or Docker Compose, such as a UGREEN NAS. You generate one
+Compose file, then copy it to the server. The server builds the image itself from `main` on
+GitHub, so it needs internet access and only needs that one file. Only the web app is reachable
+from the network; Django serves the API and the built frontend.
 
-1. Once only: `./scripts/render_compose.sh --host 192.168.0.78` writes
-   `deploy/rent-tracker.compose.yml` with generated secrets (gitignored, and it refuses to
-   overwrite: new secrets wouldn't match the database). Keep a copy somewhere safe.
-2. In the Docker app: Project → Create, name `rent-tracker`, storage path `docker/rent-tracker`,
-   import or paste the compose file, Deploy. The first build takes a few minutes.
-3. Sign in at http://192.168.0.78:8010 as `ruan`, password `ADMIN_PASSWORD` from the compose file.
+### First deploy
 
-**Updating:** push to `main`, then redeploy the project; it rebuilds from the latest code.
-Data lives in the `postgres_data` Docker volume and survives rebuilds. Demo data never reaches
-the NAS: `seed` only runs with `DEBUG=true`.
+1. Generate your Compose file:
+
+   ```bash
+   make compose
+   ```
+
+   It asks for your server's IP address or hostname, the port, a username and password for your
+   first login, and the GitHub repo to build from. Press Enter to accept a default; leave the
+   password blank to generate one. The result is `deploy/rent-tracker.compose.yml`.
+2. On your server, create a project in the Docker app. On a UGREEN NAS: **Project → Create**, with
+   the name `rent-tracker` and the storage path `docker/rent-tracker`.
+3. Import `deploy/rent-tracker.compose.yml`, or paste its contents into the editor.
+4. Click **Deploy**. The first build takes a few minutes.
+5. Open the address the generator printed and sign in. The password is the `ADMIN_PASSWORD` value
+   in the Compose file.
+
+The app starts empty: add your rental units and payment methods first. Demo data never reaches
+it, because `seed` only runs with `DEBUG=true`.
+
+To change the address or port later, edit `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` and the published
+port in the project's Compose file, and redeploy. Don't generate a new file for an existing
+install: its new secrets wouldn't match the database, which is why the generator won't overwrite
+one.
+
+### Secrets
+
+Your secrets live in the generated file and in the project on your server. That file is gitignored
+and must never be committed; only `deploy/compose.template.yml`, which holds placeholders, belongs
+in the repo. Keep a copy somewhere safe.
+
+### Updating
+
+Push to `main`, then redeploy the project in the Docker app; it rebuilds from the latest code.
+Data lives in the `postgres_data` Docker volume and survives rebuilds.
+
+### Troubleshooting
+
+- **The error mentions `pull_policy`:** the server's Compose is too old for it. Delete the line.
+- **The build can't fetch the source:** the repo must be readable without a login, and the server
+  needs internet access. It downloads GitHub's source archive because some hosts' Docker has no
+  `git`, so a Git URL won't work on them.
+
+### Network and backups
+
+The app uses plain HTTP, so keep it on your home network and don't forward port 8010 on your
+router.
 
 **Backups:** the database holds real financial records and nothing backs it up yet.
 

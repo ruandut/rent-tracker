@@ -9,6 +9,6 @@ backend/.ruff_cache/
 node_modules/
 frontend/dist/
 backend/staticfiles/
-# Rendered with real secrets by scripts/render_compose.sh.
+# Holds real secrets; written by scripts/generate_compose.sh.
 deploy/rent-tracker.compose.yml
 *.local
