@@ -135,10 +135,9 @@ export function TransactionDialog({
         </Field>
       </div>
 
-      <Field label="Description" htmlFor="tx-description">
+      <Field label="Description (optional)" htmlFor="tx-description">
         <Input
           id="tx-description"
-          required
           placeholder={isIncome ? "Rent March – Flat A" : "Plumber – geyser valve"}
           value={form.description}
           onChange={(e) => set("description", e.target.value)}

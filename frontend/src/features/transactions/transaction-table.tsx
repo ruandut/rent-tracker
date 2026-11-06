@@ -47,7 +47,9 @@ export function TransactionTable({
             >
               <TableCell className="text-muted-foreground">{formatDate(row.date)}</TableCell>
               <TableCell className="max-w-72 whitespace-normal">
-                <div className="font-medium">{row.description}</div>
+                <div className="font-medium">
+                  {row.description || <span className="text-muted-foreground">No description</span>}
+                </div>
                 {(row.tags.length > 0 || (compact && row.beneficiary_name)) && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {row.tags.map((id) => {

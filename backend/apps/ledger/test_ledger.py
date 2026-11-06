@@ -73,6 +73,22 @@ def test_create_transaction_with_beneficiary_and_tags(api, setup):
     assert bad.status_code == 400
 
 
+def test_description_is_optional(api, setup):
+    body = {
+        "kind": "expense",
+        "amount": "10",
+        "date": "2026-03-01",
+        "payment_method": setup["bank"].id,
+    }
+    res = api.post("/api/transactions/", body, format="json")
+    assert res.status_code == 201, res.json()
+    assert res.json()["description"] == ""
+    assert (
+        api.post("/api/transactions/", {**body, "description": ""}, format="json").status_code
+        == 201
+    )
+
+
 def test_payment_method_balance_and_protected_delete(api, setup):
     [method] = api.get("/api/payment-methods/", {"unit": setup["unit_a"].id}).json()
     assert method["balance"] == 1600.0  # all-time, ignores filters

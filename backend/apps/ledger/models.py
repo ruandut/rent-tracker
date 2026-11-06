@@ -103,7 +103,7 @@ class Transaction(models.Model):
     kind = models.CharField(max_length=10, choices=Kind.choices)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     date = models.DateField(db_index=True)
-    description = models.CharField(max_length=255)
+    description = models.CharField(max_length=255, blank=True)
     payment_method = models.ForeignKey(
         PaymentMethod, on_delete=models.PROTECT, related_name="transactions"
     )
