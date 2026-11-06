@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -78,6 +79,15 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# The built frontend, present only in the production image. WhiteNoise serves its files from
+# the site root; config/urls.py sends every other path to its index.html.
+SPA_ROOT = BASE_DIR / "spa"
+SPA_INDEX = SPA_ROOT / "index.html"
+if SPA_INDEX.exists():
+    WHITENOISE_ROOT = SPA_ROOT
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- API -------------------------------------------------------------------
@@ -97,3 +107,5 @@ SIMPLE_JWT = {
 
 # The Vite dev server proxies /api, so CORS only matters if you hit Django directly.
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:5174"])
+# Needed for the Django admin when it isn't on localhost.
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])

@@ -44,6 +44,24 @@ make down      # stop Docker (data kept); `docker compose down -v` deletes it
 Ports are offset from the defaults so this runs next to other projects:
 Postgres `5434`, Hatchet dashboard `8890` (login `admin@example.com` / `Admin123!!`), Hatchet gRPC `7079`.
 
+## Deploying to the UGREEN NAS
+
+The NAS builds the image itself from `main` on GitHub, so changes must be pushed to deploy. Only
+`web` is reachable from the network, on port 8010; Django serves the API and the built frontend.
+
+1. Once only: `./scripts/render_compose.sh --host 192.168.0.78` writes
+   `deploy/rent-tracker.compose.yml` with generated secrets (gitignored, and it refuses to
+   overwrite: new secrets wouldn't match the database). Keep a copy somewhere safe.
+2. In the Docker app: Project → Create, name `rent-tracker`, storage path `docker/rent-tracker`,
+   import or paste the compose file, Deploy. The first build takes a few minutes.
+3. Sign in at http://192.168.0.78:8010 as `ruan`, password `ADMIN_PASSWORD` from the compose file.
+
+**Updating:** push to `main`, then redeploy the project; it rebuilds from the latest code.
+Data lives in the `postgres_data` Docker volume and survives rebuilds. Demo data never reaches
+the NAS: `seed` only runs with `DEBUG=true`.
+
+**Backups:** the database holds real financial records and nothing backs it up yet.
+
 ## What's where
 
 | Screen | Route | Backend |

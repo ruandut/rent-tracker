@@ -1,0 +1,162 @@
+# Stack for the UGOS Docker app: paste it in as a Project.
+# scripts/render_compose.sh fills in the __PLACEHOLDERS__. Only `web` publishes a port;
+# Postgres and Hatchet stay on the internal network.
+name: rent-tracker
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+x-app-env: &app-env
+  DEBUG: "false"
+  DJANGO_SECRET_KEY: __DJANGO_SECRET_KEY__
+  DATABASE_URL: postgres://rent:__POSTGRES_PASSWORD__@postgres:5432/rent
+  ALLOWED_HOSTS: __HOST__,localhost
+  CSRF_TRUSTED_ORIGINS: http://__HOST__:__PORT__
+
+x-app: &app
+  image: rent-tracker:__TAG__
+  # Built on the NAS from the latest main on GitHub, on every deploy.
+  build: https://github.com/ruandut/rent-tracker.git#main
+  pull_policy: build
+  restart: unless-stopped
+  logging: *default-logging
+
+x-hatchet-db: &hatchet-db postgresql://rent:__POSTGRES_PASSWORD__@postgres:5432/hatchet?sslmode=disable
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: rent
+      POSTGRES_PASSWORD: __POSTGRES_PASSWORD__
+      POSTGRES_DB: rent
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rent -d rent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: Hatchet keeps its state in its own database on the same server.
+  hatchet-db:
+    image: postgres:18
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: __POSTGRES_PASSWORD__
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        psql -h postgres -U rent -d rent -tc "SELECT 1 FROM pg_database WHERE datname = 'hatchet'" | grep -q 1 ||
+        psql -h postgres -U rent -d rent -c "CREATE DATABASE hatchet"
+
+  hatchet:
+    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.110.5
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      hatchet-db:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: *hatchet-db
+      RABBITMQ_ENABLED: "false"
+      SERVER_MSGQUEUE_KIND: postgres
+      SERVER_AUTH_COOKIE_DOMAIN: localhost
+      SERVER_AUTH_COOKIE_INSECURE: "t"
+      SERVER_AUTH_SET_EMAIL_VERIFIED: "t"
+      SERVER_GRPC_BIND_ADDRESS: "0.0.0.0"
+      SERVER_GRPC_INSECURE: "t"
+      SERVER_GRPC_PORT: "7077"
+      SERVER_GRPC_BROADCAST_ADDRESS: hatchet:7077
+      SERVER_INTERNAL_CLIENT_INTERNAL_GRPC_BROADCAST_ADDRESS: localhost:7077
+      SERVER_URL: http://localhost:8888
+      SERVER_DEFAULT_ENGINE_VERSION: V1
+    volumes:
+      - hatchet_config:/config
+
+  # One-shot: mints the worker's API token once and keeps it in a volume. The image has no
+  # healthcheck to wait on, so this retries until Hatchet has finished starting.
+  hatchet-token:
+    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.110.5
+    logging: *default-logging
+    depends_on:
+      hatchet:
+        condition: service_started
+    environment:
+      DATABASE_URL: *hatchet-db
+      SERVER_MSGQUEUE_KIND: postgres
+      # hatchet-lite's built-in default tenant.
+      TENANT_ID: 707d0855-80ab-4e1f-a156-f1c4546cbf52
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        test -s /token/client-token && exit 0;
+        until out=$$(/hatchet-admin token create --config /config --tenant-id $$TENANT_ID); do sleep 3; done;
+        echo "$$out" | tail -1 > /token/client-token
+    volumes:
+      - hatchet_config:/config
+      - hatchet_token:/token
+
+  web:
+    <<: *app
+    environment:
+      <<: *app-env
+      # Only used to create the first login; changing them later does nothing.
+      ADMIN_USERNAME: __ADMIN_USERNAME__
+      ADMIN_PASSWORD: __ADMIN_PASSWORD__
+    # Migrates and creates the first admin on every start; both are no-ops when nothing changed.
+    command:
+      - sh
+      - -c
+      - >-
+        python manage.py migrate --noinput &&
+        python manage.py bootstrap_admin &&
+        exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 2 --access-logfile -
+    ports:
+      - "__PORT__:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/')
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    <<: *app
+    environment:
+      <<: *app-env
+      HATCHET_CLIENT_TLS_STRATEGY: none
+      HATCHET_CLIENT_HOST_PORT: hatchet:7077
+    command:
+      - sh
+      - -c
+      - HATCHET_CLIENT_TOKEN=$$(cat /token/client-token) exec python manage.py hatchet_worker
+    volumes:
+      - hatchet_token:/token:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      hatchet-token:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+  hatchet_config:
+  hatchet_token:
