@@ -46,10 +46,15 @@ Postgres `5434`, Hatchet dashboard `8890` (login `admin@example.com` / `Admin123
 
 ## Deploying to your own server
 
-Works on any machine with a Docker app or Docker Compose, such as a UGREEN NAS. You generate one
-Compose file, then copy it to the server. The server builds the image itself from `main` on
-GitHub, so it needs internet access and only needs that one file. Only the web app is reachable
-from the network; Django serves the API and the built frontend.
+Works on any x86-64 machine with a Docker app or Docker Compose, such as a UGREEN NAS. You generate
+one Compose file, then copy it to the server, which pulls the published app image and needs
+nothing else. Only the web app is reachable from the network; Django serves the API and the built
+frontend.
+
+Every push to `main` makes GitHub Actions build the image and publish it as
+`ghcr.io/<owner>/<repo>:latest`. In a fork, run the action once, then set the package to public
+under your GitHub profile's **Packages → Package settings**, so servers can pull it without a
+login.
 
 ### First deploy
 
@@ -60,12 +65,12 @@ from the network; Django serves the API and the built frontend.
    ```
 
    It asks for your server's IP address or hostname, the port, a username and password for your
-   first login, and the GitHub repo to build from. Press Enter to accept a default; leave the
-   password blank to generate one. The result is `deploy/rent-tracker.compose.yml`.
+   first login, and the GitHub repo whose image to run. Press Enter to accept a default; leave
+   the password blank to generate one. The result is `deploy/rent-tracker.compose.yml`.
 2. On your server, create a project in the Docker app. On a UGREEN NAS: **Project → Create**, with
    the name `rent-tracker` and the storage path `docker/rent-tracker`.
 3. Import `deploy/rent-tracker.compose.yml`, or paste its contents into the editor.
-4. Click **Deploy**. The first build takes a few minutes.
+4. Click **Deploy**.
 5. Open the address the generator printed and sign in. The password is the `ADMIN_PASSWORD` value
    in the Compose file.
 
@@ -86,8 +91,9 @@ in the repo. Keep a copy somewhere safe.
 
 ### Updating
 
-Push to `main`, then redeploy the project in the Docker app; it rebuilds from the latest code.
-Data lives in the `postgres_data` Docker volume and survives rebuilds.
+Merge to `main` and wait for the **Publish image** action to finish. Then update the project in
+the Docker app, or run `docker compose pull` and `docker compose up -d`. Data lives in the
+`postgres_data` Docker volume and survives updates.
 
 ### Troubleshooting
 
@@ -95,10 +101,8 @@ Data lives in the `postgres_data` Docker volume and survives rebuilds.
   existing database volume, usually because the file was regenerated from scratch. Recreating
   containers won't help, because the volume survives. Restore the original file, or remove the
   `rent-tracker-*` volumes if there's no data to keep.
-- **The error mentions `pull_policy`:** the server's Compose is too old for it. Delete the line.
-- **The build can't fetch the source:** the repo must be readable without a login, and the server
-  needs internet access. It downloads GitHub's source archive because some hosts' Docker has no
-  `git`, so a Git URL won't work on them.
+- **The server can't pull the image (`denied` or `unauthorized`):** the package isn't public yet,
+  or the **Publish image** action hasn't finished.
 
 ### Network and backups
 

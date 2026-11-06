@@ -39,7 +39,7 @@ ask() { # ask <prompt> <default>: prints the answer, or the default on Enter.
   printf '%s' "${answer:-$2}"
 }
 
-# The repo this checkout came from, so a fork builds from its own code.
+# The repo this checkout came from, so a fork runs its own image.
 DEFAULT_REPO="$(git -C "$ROOT" remote get-url origin 2>/dev/null \
   | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##' || true)"
 [[ "$DEFAULT_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || DEFAULT_REPO=ruandut/rent-tracker
@@ -51,7 +51,7 @@ if [[ "$PASSWORD_SET" != true ]]; then
   read -r -s -p "First login password (Enter to generate one): " PASSWORD || true
   echo
 fi
-[[ -n "$REPO" ]] || REPO="$(ask "GitHub repo to build from" "$DEFAULT_REPO")"
+[[ -n "$REPO" ]] || REPO="$(ask "GitHub repo whose image to run" "$DEFAULT_REPO")"
 
 fail() { echo "$1" >&2; exit 1; }
 
@@ -73,9 +73,7 @@ umask 077
 sed \
   -e "s|__HOST__|$HOST|g" \
   -e "s|__PORT__|$PORT|g" \
-  -e "s|__TAG__|1|g" \
-  -e "s|__REPO__|$REPO|g" \
-  -e "s|__SRC__|${REPO#*/}-main|g" \
+  -e "s|__IMAGE__|$(printf '%s' "$REPO" | tr '[:upper:]' '[:lower:]')|g" \
   -e "s|__ADMIN_USERNAME__|$USERNAME|g" \
   -e "s|__ADMIN_PASSWORD__|$PASSWORD|g" \
   -e "s|__DJANGO_SECRET_KEY__|$DJANGO_SECRET_KEY|g" \

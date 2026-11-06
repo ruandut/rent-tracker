@@ -17,15 +17,8 @@ x-app-env: &app-env
   CSRF_TRUSTED_ORIGINS: http://__HOST__:__PORT__
 
 x-app: &app
-  image: rent-tracker:__TAG__
-  # Built on the server from the latest main on GitHub, on every deploy. An archive URL rather
-  # than a Git URL, because some hosts' Docker has no git.
-  build:
-    context: https://github.com/__REPO__/archive/refs/heads/main.tar.gz
-    dockerfile: __SRC__/Dockerfile
-    args:
-      SRC: __SRC__
-  pull_policy: build
+  # Published from main by .github/workflows/publish-image.yml.
+  image: ghcr.io/__IMAGE__:latest
   restart: unless-stopped
   logging: *default-logging
 
