@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { CrudDialog, useCrudDialog } from "@/components/crud-dialog";
 import { Field } from "@/components/form";
 import { Money } from "@/components/money";
-import { EmptyState, Page, TableSkeleton } from "@/components/page";
+import { EmptyState, flexCell, Page, TableSkeleton } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,8 +71,8 @@ function BeneficiariesPage() {
                   className="cursor-pointer"
                   onClick={() => dialog.openEdit(row)}
                 >
-                  <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell className="hidden text-muted-foreground sm:table-cell">
+                  <TableCell className={`${flexCell} font-medium`}>{row.name}</TableCell>
+                  <TableCell className="hidden max-w-48 truncate text-muted-foreground sm:table-cell">
                     {row.relationship || "—"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{row.count}</TableCell>

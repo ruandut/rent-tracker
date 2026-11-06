@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { CrudDialog, useCrudDialog } from "@/components/crud-dialog";
 import { Field } from "@/components/form";
 import { Money } from "@/components/money";
-import { EmptyState, Page, TableSkeleton } from "@/components/page";
+import { EmptyState, flexCell, Page, TableSkeleton } from "@/components/page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,10 +71,10 @@ function UnitsPage() {
                   className="cursor-pointer"
                   onClick={() => dialog.openEdit(row)}
                 >
-                  <TableCell className="font-medium">
+                  <TableCell className={`${flexCell} font-medium`}>
                     {row.name} {!row.is_active && <Badge variant="outline">Inactive</Badge>}
                   </TableCell>
-                  <TableCell className="hidden text-muted-foreground sm:table-cell">
+                  <TableCell className="hidden max-w-56 truncate text-muted-foreground sm:table-cell">
                     {row.address || "—"}
                   </TableCell>
                   <TableCell className="text-right">

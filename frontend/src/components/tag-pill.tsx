@@ -44,12 +44,12 @@ export function TagPill({
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center rounded-full px-2 text-xs font-medium whitespace-nowrap",
+        "inline-flex h-5 max-w-full items-center rounded-full px-2 text-xs font-medium whitespace-nowrap",
         colorClass(color),
         className,
       )}
     >
-      {name}
+      <span className="truncate">{name}</span>
     </span>
   );
 }

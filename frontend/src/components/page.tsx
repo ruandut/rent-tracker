@@ -28,6 +28,12 @@ export function Page({
   );
 }
 
+/**
+ * For a table's main text column: takes the row's spare width and ellipsizes. A table cell only
+ * truncates with a max-width set, and max-w-0 with w-full means "whatever space is left".
+ */
+export const flexCell = "w-full max-w-0 truncate";
+
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="rounded-xl border border-dashed p-10 text-center">

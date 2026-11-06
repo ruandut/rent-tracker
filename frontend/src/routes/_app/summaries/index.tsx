@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { CrudDialog, useCrudDialog } from "@/components/crud-dialog";
 import { Field, NativeSelect } from "@/components/form";
-import { EmptyState, Page, TableSkeleton } from "@/components/page";
+import { EmptyState, flexCell, Page, TableSkeleton } from "@/components/page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,13 +90,17 @@ function SummariesPage() {
                   className="cursor-pointer"
                   onClick={() => dialog.openEdit(row)}
                 >
-                  <TableCell className="whitespace-normal">
-                    <div className="font-medium">{row.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {row.channel === "email" ? "Email" : "Telegram"} · {row.recipient}
-                    </div>
-                    {row.last_error && (
-                      <div className="mt-1 text-xs text-destructive">{row.last_error}</div>
+                  <TableCell className={flexCell}>
+                    <div className="truncate font-medium">{row.name}</div>
+                    {/* An error takes the second line so the row keeps its height. */}
+                    {row.last_error ? (
+                      <div className="truncate text-xs text-destructive" title={row.last_error}>
+                        {row.last_error}
+                      </div>
+                    ) : (
+                      <div className="truncate text-xs text-muted-foreground">
+                        {row.channel === "email" ? "Email" : "Telegram"} · {row.recipient}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
@@ -237,7 +241,8 @@ function TestButton({ id }: { id: number }) {
         test.mutate();
       }}
     >
-      <Send /> {test.isPending ? "Sending…" : "Send now"}
+      <Send />
+      <span className="sr-only sm:not-sr-only">{test.isPending ? "Sending…" : "Send now"}</span>
     </Button>
   );
 }

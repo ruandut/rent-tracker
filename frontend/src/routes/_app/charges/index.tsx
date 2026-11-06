@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { CrudDialog, useCrudDialog } from "@/components/crud-dialog";
 import { Field, NativeSelect } from "@/components/form";
-import { EmptyState, Page, Stat, TableSkeleton } from "@/components/page";
+import { EmptyState, flexCell, Page, Stat, TableSkeleton } from "@/components/page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,16 +144,22 @@ function ChargesPage() {
                   onClick={() => dialog.openEdit(row)}
                 >
                   <TableCell>{formatMonth(row.period)}</TableCell>
-                  <TableCell>{row.rental_unit_name}</TableCell>
-                  <TableCell>
+                  <TableCell className="max-w-24 truncate sm:max-w-40">
+                    {row.rental_unit_name}
+                  </TableCell>
+                  <TableCell className={flexCell}>
                     {CHARGE_CATEGORIES[row.category]}{" "}
                     {row.transaction && (
-                      <Badge variant="secondary" title="Linked to a payment in Expense tracking">
+                      <Badge
+                        variant="secondary"
+                        className="align-top"
+                        title="Linked to a payment in Expense tracking"
+                      >
                         Paid
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="hidden text-muted-foreground md:table-cell">
+                  <TableCell className="hidden max-w-56 truncate text-muted-foreground md:table-cell">
                     {row.description || "—"}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">

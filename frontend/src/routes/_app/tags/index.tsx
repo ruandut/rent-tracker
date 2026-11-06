@@ -4,7 +4,7 @@ import { Lock, Plus } from "lucide-react";
 import { CrudDialog, useCrudDialog } from "@/components/crud-dialog";
 import { Field } from "@/components/form";
 import { Money } from "@/components/money";
-import { EmptyState, Page, TableSkeleton } from "@/components/page";
+import { EmptyState, flexCell, Page, TableSkeleton } from "@/components/page";
 import { swatchClass, TAG_COLORS, TagPill } from "@/components/tag-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,8 +64,8 @@ function TagsPage() {
                   className="cursor-pointer"
                   onClick={() => dialog.openEdit(row)}
                 >
-                  <TableCell>
-                    <span className="inline-flex items-center gap-2">
+                  <TableCell className={flexCell}>
+                    <span className="flex items-center gap-2">
                       <TagPill name={row.name} color={row.color} />
                       {row.is_system && (
                         <span title="System tag: can be renamed, not deleted">

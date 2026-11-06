@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { CrudDialog, useCrudDialog } from "@/components/crud-dialog";
 import { Field, NativeSelect } from "@/components/form";
-import { EmptyState, Page, Stat, TableSkeleton } from "@/components/page";
+import { EmptyState, flexCell, Page, Stat, TableSkeleton } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -141,7 +141,7 @@ function UtilitiesPage() {
                   onClick={() => dialog.openEdit(row)}
                 >
                   <TableCell>{formatMonth(row.period)}</TableCell>
-                  <TableCell>{row.rental_unit_name}</TableCell>
+                  <TableCell className={flexCell}>{row.rental_unit_name}</TableCell>
                   <TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">
                     {row.meter_reading != null ? formatNumber(row.meter_reading) : "—"}
                   </TableCell>

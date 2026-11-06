@@ -1,5 +1,6 @@
 import { TagPill } from "@/components/tag-pill";
 import { Money } from "@/components/money";
+import { flexCell } from "@/components/page";
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ export function TransactionTable({
 }) {
   const tags = useAll<Tag>("tags");
   const tagById = new Map(tags.data?.map((t) => [t.id, t]));
+  const rowTags = (row: Transaction) => row.tags.flatMap((id) => tagById.get(id) ?? []);
 
   return (
     <div className="rounded-xl border">
@@ -46,31 +48,36 @@ export function TransactionTable({
               onClick={onSelect ? () => onSelect(row) : undefined}
             >
               <TableCell className="text-muted-foreground">{formatDate(row.date)}</TableCell>
-              <TableCell className="max-w-72 whitespace-normal">
-                <div className="font-medium">
+              <TableCell className={flexCell}>
+                <div className="truncate font-medium" title={row.description || undefined}>
                   {row.description || <span className="text-muted-foreground">No description</span>}
                 </div>
-                {(row.tags.length > 0 || (compact && row.beneficiary_name)) && (
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {row.tags.map((id) => {
-                      const tag = tagById.get(id);
-                      return tag ? <TagPill key={id} name={tag.name} color={tag.color} /> : null;
-                    })}
-                    {compact && row.beneficiary_name && (
-                      <span className="text-xs text-muted-foreground">
-                        → {row.beneficiary_name}
-                      </span>
-                    )}
-                  </div>
-                )}
+                {/* Always present and one line tall, so every row is the same height. */}
+                <div className="mt-1 flex h-5 items-center gap-1 overflow-hidden">
+                  {rowTags(row).map((tag) => (
+                    <TagPill key={tag.id} name={tag.name} color={tag.color} className="shrink-0" />
+                  ))}
+                  {compact && row.beneficiary_name && (
+                    <span className="truncate text-xs text-muted-foreground">
+                      → {row.beneficiary_name}
+                    </span>
+                  )}
+                  {row.tags.length === 0 && !(compact && row.beneficiary_name) && (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {row.payment_method_name}
+                    </span>
+                  )}
+                </div>
               </TableCell>
-              <TableCell className="hidden md:table-cell">{row.rental_unit_name ?? "—"}</TableCell>
+              <TableCell className="hidden max-w-32 truncate md:table-cell">
+                {row.rental_unit_name ?? "—"}
+              </TableCell>
               {!compact && (
-                <TableCell className="hidden lg:table-cell">
+                <TableCell className="hidden max-w-36 truncate lg:table-cell">
                   {row.beneficiary_name ?? "—"}
                 </TableCell>
               )}
-              <TableCell className="hidden text-muted-foreground lg:table-cell">
+              <TableCell className="hidden max-w-40 truncate text-muted-foreground lg:table-cell">
                 {row.payment_method_name}
               </TableCell>
               <TableCell className="text-right font-medium">

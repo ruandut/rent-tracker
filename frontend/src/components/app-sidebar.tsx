@@ -34,6 +34,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { api, type Me } from "@/lib/api";
 import { useAuth } from "@/stores/auth";
@@ -56,14 +57,23 @@ const SETUP: NavItem[] = [
   { to: "/summaries", label: "Summaries", icon: Send },
 ];
 
+/** On a phone the sidebar is a drawer over the page, so choosing a link should dismiss it. */
+function useCloseOnMobile() {
+  const { isMobile, setOpenMobile } = useSidebar();
+  return () => {
+    if (isMobile) setOpenMobile(false);
+  };
+}
+
 export function AppSidebar() {
+  const closeOnMobile = useCloseOnMobile();
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link to="/">
+              <Link to="/" onClick={closeOnMobile}>
                 <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-emerald-600 text-white">
                   <Home className="size-4" />
                 </div>
@@ -91,6 +101,7 @@ export function AppSidebar() {
 
 function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
   const matchRoute = useMatchRoute();
+  const closeOnMobile = useCloseOnMobile();
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
@@ -103,7 +114,7 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
                 isActive={!!matchRoute({ to: item.to, fuzzy: !item.exact })}
                 tooltip={item.label}
               >
-                <Link to={item.to}>
+                <Link to={item.to} onClick={closeOnMobile}>
                   <item.icon />
                   <span>{item.label}</span>
                 </Link>
