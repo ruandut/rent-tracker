@@ -23,11 +23,14 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# Never overwrite: new secrets wouldn't match the database of an existing install.
-if [[ -f "$OUT" ]]; then
-  echo "$OUT already exists; refusing to overwrite it." >&2
-  echo "If that install was never deployed, delete the file and run this again." >&2
-  exit 1
+# Running this again keeps the existing secrets: the database only accepts the password it was
+# created with, so new ones would lock the app out of an existing install.
+existing() { [[ -f "$OUT" ]] && sed -nE "s/^ *$1: \"([^\"]+)\"$/\1/p" "$OUT" | head -1 || true; }
+POSTGRES_PASSWORD="$(existing POSTGRES_PASSWORD)"
+DJANGO_SECRET_KEY="$(existing DJANGO_SECRET_KEY)"
+EXISTING_PASSWORD="$(existing ADMIN_PASSWORD)"
+if [[ -n "$POSTGRES_PASSWORD" ]]; then
+  echo "Updating your existing Compose file; its secrets stay the same."
 fi
 
 ask() { # ask <prompt> <default>: prints the answer, or the default on Enter.
@@ -62,7 +65,9 @@ fail() { echo "$1" >&2; exit 1; }
   || fail "Password needs 12+ characters: letters, numbers and . _ - only."
 [[ "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || fail "Repo must look like owner/name."
 
-PASSWORD="${PASSWORD:-$(openssl rand -hex 12)}"
+PASSWORD="${PASSWORD:-${EXISTING_PASSWORD:-$(openssl rand -hex 12)}}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -hex 24)}"
+DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-$(openssl rand -hex 32)}"
 
 umask 077
 sed \
@@ -73,9 +78,10 @@ sed \
   -e "s|__SRC__|${REPO#*/}-main|g" \
   -e "s|__ADMIN_USERNAME__|$USERNAME|g" \
   -e "s|__ADMIN_PASSWORD__|$PASSWORD|g" \
-  -e "s|__DJANGO_SECRET_KEY__|$(openssl rand -hex 32)|g" \
-  -e "s|__POSTGRES_PASSWORD__|$(openssl rand -hex 24)|g" \
-  "$ROOT/deploy/compose.template.yml" > "$OUT"
+  -e "s|__DJANGO_SECRET_KEY__|$DJANGO_SECRET_KEY|g" \
+  -e "s|__POSTGRES_PASSWORD__|$POSTGRES_PASSWORD|g" \
+  "$ROOT/deploy/compose.template.yml" > "$OUT.tmp"
+mv "$OUT.tmp" "$OUT"
 
 cat <<DONE
 

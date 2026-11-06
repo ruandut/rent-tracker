@@ -5,7 +5,7 @@ from django.urls import include, path, re_path
 from apps.core.views import spa
 
 # Client-side routes (/transactions etc.) all load the SPA; unknown /api paths stay 404s.
-SPA_ROUTE = r"^(?!(api|admin|static)(/|$)).*$"
+SPA_ROUTE = r"^(?!(?:api|admin|static)(?:/|$)).*$"
 
 urlpatterns = [
     path("admin/", admin.site.urls),

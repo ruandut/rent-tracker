@@ -72,10 +72,11 @@ from the network; Django serves the API and the built frontend.
 The app starts empty: add your rental units and payment methods first. Demo data never reaches
 it, because `seed` only runs with `DEBUG=true`.
 
-To change the address or port later, edit `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` and the published
-port in the project's Compose file, and redeploy. Don't generate a new file for an existing
-install: its new secrets wouldn't match the database, which is why the generator won't overwrite
-one.
+To change the address or port later, run `make compose` again and replace the project's Compose
+file with the result. It keeps the existing secrets, so the database stays reachable. Keep that
+file: the database only accepts the password it was created with, and Docker keeps the database
+volume even when you delete the containers. If you delete the file, a new one gets new secrets
+and the app fails with `password authentication failed` until the volumes are removed.
 
 ### Secrets
 
@@ -90,6 +91,10 @@ Data lives in the `postgres_data` Docker volume and survives rebuilds.
 
 ### Troubleshooting
 
+- **`password authentication failed for user "rent"`:** the Compose file's secrets don't match the
+  existing database volume, usually because the file was regenerated from scratch. Recreating
+  containers won't help, because the volume survives. Restore the original file, or remove the
+  `rent-tracker-*` volumes if there's no data to keep.
 - **The error mentions `pull_policy`:** the server's Compose is too old for it. Delete the line.
 - **The build can't fetch the source:** the repo must be readable without a login, and the server
   needs internet access. It downloads GitHub's source archive because some hosts' Docker has no

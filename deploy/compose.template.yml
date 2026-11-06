@@ -43,7 +43,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rent -d rent"]
+      # Over TCP on purpose: during first-time setup Postgres answers on its socket only, so a
+      # socket check reports healthy before other containers can actually connect.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U rent -d rent"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -106,6 +108,7 @@ services:
       - -c
       - >-
         test -s /token/client-token && exit 0;
+        until test -s /config/server.yaml; do sleep 2; done;
         until out=$$(/hatchet-admin token create --config /config --tenant-id $$TENANT_ID); do sleep 3; done;
         echo "$$out" | tail -1 > /token/client-token
     volumes:
@@ -161,7 +164,12 @@ services:
       hatchet-token:
         condition: service_completed_successfully
 
+# Named outright so they stay the same whatever the Docker app calls the project. The database
+# keeps the password it was created with, so these must keep matching this file's secrets.
 volumes:
   postgres_data:
+    name: rent-tracker-postgres
   hatchet_config:
+    name: rent-tracker-hatchet-config
   hatchet_token:
+    name: rent-tracker-hatchet-token
