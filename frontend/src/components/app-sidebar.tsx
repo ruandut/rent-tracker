@@ -10,6 +10,7 @@ import {
   Landmark,
   LayoutDashboard,
   LogOut,
+  Send,
   Tags,
   Users,
   type LucideIcon,
@@ -52,6 +53,7 @@ const SETUP: NavItem[] = [
   { to: "/payment-methods", label: "Payment methods", icon: CreditCard },
   { to: "/beneficiaries", label: "Beneficiaries", icon: Users },
   { to: "/tags", label: "Tags", icon: Tags },
+  { to: "/summaries", label: "Summaries", icon: Send },
 ];
 
 export function AppSidebar() {

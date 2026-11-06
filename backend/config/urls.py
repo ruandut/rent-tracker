@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/auth/", include("apps.accounts.urls")),
     path("api/", include("apps.ledger.urls")),
     path("api/", include("apps.utilities.urls")),
+    path("api/notifications/", include("apps.notifications.urls")),
 ]
 
 if settings.SPA_INDEX.exists():

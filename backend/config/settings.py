@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     # Domain apps. utilities may import from ledger, never the other way round.
     "apps.ledger",
     "apps.utilities",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [

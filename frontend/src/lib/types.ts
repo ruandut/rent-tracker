@@ -95,6 +95,39 @@ export type MunicipalCharge = {
   notes: string;
 };
 
+export type SummaryChannel = "email" | "telegram";
+export type SummaryFrequency = "once" | "daily" | "weekly" | "monthly";
+
+export type SummarySchedule = {
+  id: Id;
+  name: string;
+  channel: SummaryChannel;
+  recipient: string;
+  frequency: SummaryFrequency;
+  start_at: string;
+  is_enabled: boolean;
+  next_run_at: string | null;
+  last_sent_at: string | null;
+  last_error: string;
+};
+
+export type DeliverySettings = {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_use_tls: boolean;
+  from_email: string;
+  has_smtp_password: boolean;
+  has_telegram_bot_token: boolean;
+};
+
+export const SUMMARY_FREQUENCIES: Record<SummaryFrequency, string> = {
+  once: "Once",
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+};
+
 export type Totals = { income: number; expense: number; net: number };
 
 export type Dashboard = {

@@ -27,6 +27,13 @@ def _sum(condition: Q):
     return Coalesce(Sum("transactions__amount", filter=condition), ZERO)
 
 
+def active_accounts():
+    """Active payment methods with their all-time balance, which ignores any filters."""
+    return PaymentMethod.objects.filter(is_active=True).annotate(
+        balance=F("opening_balance") + _sum(INCOME) - _sum(EXPENSE)
+    )
+
+
 class ProtectedDestroyMixin:
     protected_message = "This is still used by transactions."
 
@@ -135,9 +142,7 @@ def dashboard(request):
     today = date.today()
     month_start = today.replace(day=1)
 
-    accounts = PaymentMethod.objects.filter(is_active=True).annotate(
-        balance=F("opening_balance") + _sum(INCOME) - _sum(EXPENSE)
-    )
+    accounts = active_accounts()
     unit_q = RangeFilter(unit=f.unit).q()
     month = Transaction.objects.filter(unit_q, date__gte=month_start, date__lte=today).totals()
     in_range = Transaction.objects.filter(f.q())

@@ -15,6 +15,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBeneficiariesIndexRouteImport } from './routes/_app/beneficiaries/index'
 import { Route as AppChargesIndexRouteImport } from './routes/_app/charges/index'
 import { Route as AppPaymentMethodsIndexRouteImport } from './routes/_app/payment-methods/index'
+import { Route as AppSummariesIndexRouteImport } from './routes/_app/summaries/index'
 import { Route as AppTagsIndexRouteImport } from './routes/_app/tags/index'
 import { Route as AppTransactionsIndexRouteImport } from './routes/_app/transactions/index'
 import { Route as AppUnitsIndexRouteImport } from './routes/_app/units/index'
@@ -49,6 +50,11 @@ const AppPaymentMethodsIndexRoute = AppPaymentMethodsIndexRouteImport.update({
   path: '/payment-methods/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSummariesIndexRoute = AppSummariesIndexRouteImport.update({
+  id: '/summaries/',
+  path: '/summaries/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTagsIndexRoute = AppTagsIndexRouteImport.update({
   id: '/tags/',
   path: '/tags/',
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/beneficiaries/': typeof AppBeneficiariesIndexRoute
   '/charges/': typeof AppChargesIndexRoute
   '/payment-methods/': typeof AppPaymentMethodsIndexRoute
+  '/summaries/': typeof AppSummariesIndexRoute
   '/tags/': typeof AppTagsIndexRoute
   '/transactions/': typeof AppTransactionsIndexRoute
   '/units/': typeof AppUnitsIndexRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/beneficiaries': typeof AppBeneficiariesIndexRoute
   '/charges': typeof AppChargesIndexRoute
   '/payment-methods': typeof AppPaymentMethodsIndexRoute
+  '/summaries': typeof AppSummariesIndexRoute
   '/tags': typeof AppTagsIndexRoute
   '/transactions': typeof AppTransactionsIndexRoute
   '/units': typeof AppUnitsIndexRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/_app/beneficiaries/': typeof AppBeneficiariesIndexRoute
   '/_app/charges/': typeof AppChargesIndexRoute
   '/_app/payment-methods/': typeof AppPaymentMethodsIndexRoute
+  '/_app/summaries/': typeof AppSummariesIndexRoute
   '/_app/tags/': typeof AppTagsIndexRoute
   '/_app/transactions/': typeof AppTransactionsIndexRoute
   '/_app/units/': typeof AppUnitsIndexRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | '/beneficiaries/'
     | '/charges/'
     | '/payment-methods/'
+    | '/summaries/'
     | '/tags/'
     | '/transactions/'
     | '/units/'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
     | '/beneficiaries'
     | '/charges'
     | '/payment-methods'
+    | '/summaries'
     | '/tags'
     | '/transactions'
     | '/units'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/_app/beneficiaries/'
     | '/_app/charges/'
     | '/_app/payment-methods/'
+    | '/_app/summaries/'
     | '/_app/tags/'
     | '/_app/transactions/'
     | '/_app/units/'
@@ -191,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPaymentMethodsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/summaries/': {
+      id: '/_app/summaries/'
+      path: '/summaries'
+      fullPath: '/summaries/'
+      preLoaderRoute: typeof AppSummariesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/tags/': {
       id: '/_app/tags/'
       path: '/tags'
@@ -227,6 +246,7 @@ interface AppRouteChildren {
   AppBeneficiariesIndexRoute: typeof AppBeneficiariesIndexRoute
   AppChargesIndexRoute: typeof AppChargesIndexRoute
   AppPaymentMethodsIndexRoute: typeof AppPaymentMethodsIndexRoute
+  AppSummariesIndexRoute: typeof AppSummariesIndexRoute
   AppTagsIndexRoute: typeof AppTagsIndexRoute
   AppTransactionsIndexRoute: typeof AppTransactionsIndexRoute
   AppUnitsIndexRoute: typeof AppUnitsIndexRoute
@@ -238,6 +258,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBeneficiariesIndexRoute: AppBeneficiariesIndexRoute,
   AppChargesIndexRoute: AppChargesIndexRoute,
   AppPaymentMethodsIndexRoute: AppPaymentMethodsIndexRoute,
+  AppSummariesIndexRoute: AppSummariesIndexRoute,
   AppTagsIndexRoute: AppTagsIndexRoute,
   AppTransactionsIndexRoute: AppTransactionsIndexRoute,
   AppUnitsIndexRoute: AppUnitsIndexRoute,

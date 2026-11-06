@@ -119,6 +119,7 @@ router.
 | Payment methods (cards/accounts) | `/payment-methods` | `/api/payment-methods/` |
 | Beneficiaries | `/beneficiaries` | `/api/beneficiaries/` |
 | Tags (`maintenance` is a system tag: renameable, not deletable) | `/tags` | `/api/tags/` |
+| Scheduled summaries by email or Telegram | `/summaries` | `/api/notifications/` |
 
 - **Filters:** the date range + rental unit in the header apply to every screen. They live in a
   persisted Zustand store (`frontend/src/stores/filters.ts`) and go to the API as
@@ -128,5 +129,10 @@ router.
 - **Utility readings and charges** record what was billed. Paying the bill is still a
   transaction; a charge can point at the transaction that paid it.
 - **Hatchet:** apps expose tasks via `TASKS = [...]` in `apps/<app>/tasks.py`; `make worker` registers
-  them. Today there's only `ledger-ping`, a placeholder where email ingestion will go
-  (`Transaction.source = "email"` is already reserved).
+  them. `send-due-summaries` runs every minute and sends any summary that's due. `ledger-ping` is
+  a placeholder where email ingestion will go (`Transaction.source = "email"` is already reserved).
+- **Summaries:** set up email or Telegram on the Summaries screen, then schedule a balance and
+  totals summary. **Send now** tests delivery straight away. Scheduled sends need the worker
+  running, and if it was down they send once rather than catching up. Passwords and bot tokens are
+  encrypted using `DJANGO_SECRET_KEY`. Telegram bots can't message phone numbers, so they need a
+  chat ID from someone who has pressed Start on the bot.
