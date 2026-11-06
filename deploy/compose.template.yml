@@ -40,41 +40,38 @@ services:
       POSTGRES_USER: rent
       POSTGRES_PASSWORD: "__POSTGRES_PASSWORD__"
       POSTGRES_DB: rent
-    volumes:
-      - postgres_data:/var/lib/postgresql
-    healthcheck:
-      # Over TCP on purpose: during first-time setup Postgres answers on its socket only, so a
-      # socket check reports healthy before other containers can actually connect.
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U rent -d rent"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  # One-shot: Hatchet keeps its state in its own database on the same server.
-  hatchet-db:
-    image: postgres:18
-    logging: *default-logging
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: "__POSTGRES_PASSWORD__"
+    # Hatchet keeps its state in its own database on this server. This creates it once Postgres
+    # is accepting connections, and is a no-op after that.
     entrypoint:
       - sh
       - -c
       - >-
-        psql -h postgres -U rent -d rent -tc "SELECT 1 FROM pg_database WHERE datname = 'hatchet'" | grep -q 1 ||
-        psql -h postgres -U rent -d rent -c "CREATE DATABASE hatchet"
+        (export PGPASSWORD="$$POSTGRES_PASSWORD";
+        until pg_isready -q -h 127.0.0.1 -U rent -d rent; do sleep 1; done;
+        psql -h 127.0.0.1 -U rent -d rent -tc "SELECT 1 FROM pg_database WHERE datname = 'hatchet'" | grep -q 1 ||
+        psql -h 127.0.0.1 -U rent -d rent -c "CREATE DATABASE hatchet") &
+        exec docker-entrypoint.sh postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      # Healthy means others can connect and Hatchet's database exists. Over TCP on purpose:
+      # during first-time setup Postgres answers on its socket only.
+      test: ["CMD-SHELL", "PGPASSWORD=$$POSTGRES_PASSWORD psql -h 127.0.0.1 -U rent -d hatchet -c 'SELECT 1'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   hatchet:
     image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.110.5
     restart: unless-stopped
     logging: *default-logging
     depends_on:
-      hatchet-db:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     environment:
       DATABASE_URL: *hatchet-db
+      # hatchet-lite's built-in default tenant.
+      TENANT_ID: 707d0855-80ab-4e1f-a156-f1c4546cbf52
       RABBITMQ_ENABLED: "false"
       SERVER_MSGQUEUE_KIND: postgres
       SERVER_AUTH_COOKIE_DOMAIN: localhost
@@ -87,33 +84,25 @@ services:
       SERVER_INTERNAL_CLIENT_INTERNAL_GRPC_BROADCAST_ADDRESS: localhost:7077
       SERVER_URL: http://localhost:8888
       SERVER_DEFAULT_ENGINE_VERSION: V1
-    volumes:
-      - hatchet_config:/config
-
-  # One-shot: mints the worker's API token once and keeps it in a volume. The image has no
-  # healthcheck to wait on, so this retries until Hatchet has finished starting.
-  hatchet-token:
-    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:v0.110.5
-    logging: *default-logging
-    depends_on:
-      hatchet:
-        condition: service_started
-    environment:
-      DATABASE_URL: *hatchet-db
-      SERVER_MSGQUEUE_KIND: postgres
-      # hatchet-lite's built-in default tenant.
-      TENANT_ID: 707d0855-80ab-4e1f-a156-f1c4546cbf52
+    # Mints the worker's API token once, in the background, after Hatchet writes its config. The
+    # token lives in a volume the worker reads, and healthy means it exists.
     entrypoint:
       - sh
       - -c
       - >-
-        test -s /token/client-token && exit 0;
+        (test -s /token/client-token && exit 0;
         until test -s /config/server.yaml; do sleep 2; done;
         until out=$$(/hatchet-admin token create --config /config --tenant-id $$TENANT_ID); do sleep 3; done;
-        echo "$$out" | tail -1 > /token/client-token
+        echo "$$out" | tail -1 > /token/client-token) &
+        exec ./entrypoint.sh
     volumes:
       - hatchet_config:/config
       - hatchet_token:/token
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /token/client-token"]
+      interval: 5s
+      timeout: 3s
+      retries: 36
 
   web:
     <<: *app
@@ -161,8 +150,8 @@ services:
     depends_on:
       web:
         condition: service_healthy
-      hatchet-token:
-        condition: service_completed_successfully
+      hatchet:
+        condition: service_healthy
 
 # Named outright so they stay the same whatever the Docker app calls the project. The database
 # keeps the password it was created with, so these must keep matching this file's secrets.
