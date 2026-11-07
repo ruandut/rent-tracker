@@ -116,7 +116,7 @@ router.
 | Screen | Route | Backend |
 |---|---|---|
 | Dashboard: balance, in/out this month, monthly bars, spend by tag | `/` | `GET /api/dashboard/` |
-| Expense tracking: log income/expenses, beneficiary, tags | `/transactions` | `/api/transactions/` |
+| Expense tracking: log income, expenses and transfers, beneficiary, tags | `/transactions` | `/api/transactions/` |
 | Water & electricity per unit per month | `/utilities` | `/api/readings/` |
 | Rates & taxes and other municipal charges | `/charges` | `/api/charges/` |
 | Rental units | `/units` | `/api/units/` |
@@ -130,8 +130,12 @@ router.
   and carry between those screens. They live in a
   persisted Zustand store (`frontend/src/stores/filters.ts`) and go to the API as
   `?date_from=&date_to=&unit=` (`backend/apps/core/filters.py`).
-- **Balances:** a payment method's balance is its opening balance plus all-time income minus
-  expenses, so it ignores the filters; the in/out figures beside it respect them.
+- **Balances:** a payment method's balance is its opening balance plus all-time income and transfers
+  in, minus expenses and transfers out, so it ignores the filters; the in/out and moved figures
+  beside it respect them.
+- **Transfers** move money between your own accounts, such as rent into savings. They change both
+  balances but aren't income or expenses, so they stay out of every in/out total. Accounts of the
+  Savings type get their own dashboard figure. Interest is ordinary income on the savings account.
 - **Utility readings and charges** record what was billed. Paying the bill is still a
   transaction; a charge can point at the transaction that paid it.
 - **Municipal bills** are the source of truth for what they cover. One printed bill is split

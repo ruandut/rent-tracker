@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Banknote, CreditCard, Landmark, Plus, Wallet } from "lucide-react";
+import { Banknote, CreditCard, Landmark, PiggyBank, Plus, Wallet } from "lucide-react";
 
 import { CrudDialog, useCrudDialog } from "@/components/crud-dialog";
 import { Field, NativeSelect } from "@/components/form";
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_app/payment-methods/")({
 
 const ICONS: Record<PaymentMethodKind, typeof Wallet> = {
   bank_account: Landmark,
+  savings_account: PiggyBank,
   credit_card: CreditCard,
   debit_card: CreditCard,
   cash: Banknote,
@@ -56,7 +57,7 @@ function PaymentMethodsPage() {
   return (
     <Page
       filters
-      description="The cards and accounts money moves through. Balance is all-time; in/out follow the filters."
+      description="The cards and accounts money moves through. Balance is all-time; in, out and moved follow the filters."
       actions={
         <Button onClick={() => dialog.openNew()}>
           <Plus /> Add payment method
@@ -107,6 +108,12 @@ function PaymentMethodsPage() {
                     Out {formatMoney(row.expense)}
                   </span>
                 </div>
+                {(row.moved_in > 0 || row.moved_out > 0) && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Moved in {formatMoney(row.moved_in)}</span>
+                    <span>Moved out {formatMoney(row.moved_out)}</span>
+                  </div>
+                )}
               </button>
             );
           })}

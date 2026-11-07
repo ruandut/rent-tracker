@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, PiggyBank, Wallet } from "lucide-react";
 
 import { EmptyState, Page, Stat } from "@/components/page";
 import { swatchClass } from "@/components/tag-pill";
@@ -33,19 +33,40 @@ function DashboardPage() {
   }
 
   const monthName = formatMonth(data.month.start);
+  const savingsAccounts = data.accounts.filter((a) => a.kind === "savings_account");
+  const everydayAccounts = data.accounts.filter((a) => a.kind !== "savings_account");
+  const listBalances = (accounts: Dashboard["accounts"]) =>
+    accounts.map((a) => `${a.name}: ${formatMoney(a.balance)}`).join(" · ");
   return (
     <Page filters description="Where the rental money is, and where it went.">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div
+        className={cn(
+          "grid gap-4",
+          savingsAccounts.length > 0 ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-3",
+        )}
+      >
         <Stat
-          label="Account balance"
-          value={formatMoney(data.balance)}
+          label={savingsAccounts.length > 0 ? "Available" : "Account balance"}
+          value={formatMoney(data.available)}
           icon={<Wallet className="size-4" />}
           hint={
-            data.accounts.length > 1
-              ? data.accounts.map((a) => `${a.name}: ${formatMoney(a.balance)}`).join(" · ")
+            everydayAccounts.length > 1
+              ? listBalances(everydayAccounts)
               : "All active payment methods"
           }
         />
+        {savingsAccounts.length > 0 && (
+          <Stat
+            label="Savings"
+            value={formatMoney(data.savings)}
+            icon={<PiggyBank className="size-4" />}
+            hint={
+              savingsAccounts.length > 1
+                ? listBalances(savingsAccounts)
+                : `${formatMoney(data.balance)} across all accounts`
+            }
+          />
+        )}
         <Stat
           label={`In · ${monthName}`}
           value={formatMoney(data.month.income)}

@@ -12,7 +12,13 @@ export type RentalUnit = {
   expense: number;
 };
 
-export type PaymentMethodKind = "bank_account" | "credit_card" | "debit_card" | "cash" | "other";
+export type PaymentMethodKind =
+  | "bank_account"
+  | "savings_account"
+  | "credit_card"
+  | "debit_card"
+  | "cash"
+  | "other";
 
 export type PaymentMethod = {
   id: Id;
@@ -26,6 +32,8 @@ export type PaymentMethod = {
   balance: number;
   income: number;
   expense: number;
+  moved_in: number;
+  moved_out: number;
 };
 
 export type Beneficiary = {
@@ -47,7 +55,7 @@ export type Tag = {
   count: number;
 };
 
-export type TransactionKind = "income" | "expense";
+export type TransactionKind = "income" | "expense" | "transfer";
 
 export type Transaction = {
   id: Id;
@@ -57,6 +65,8 @@ export type Transaction = {
   description: string;
   payment_method: Id;
   payment_method_name: string;
+  transfer_to: Id | null;
+  transfer_to_name: string | null;
   rental_unit: Id | null;
   rental_unit_name: string | null;
   beneficiary: Id | null;
@@ -241,6 +251,8 @@ export type Totals = { income: number; expense: number; net: number };
 
 export type Dashboard = {
   balance: number;
+  available: number;
+  savings: number;
   accounts: { id: Id; name: string; kind: PaymentMethodKind; balance: number }[];
   month: Totals & { start: string };
   range: Totals;
@@ -251,6 +263,7 @@ export type Dashboard = {
 
 export const PAYMENT_METHOD_KINDS: Record<PaymentMethodKind, string> = {
   bank_account: "Bank account",
+  savings_account: "Savings account",
   credit_card: "Credit card",
   debit_card: "Debit card",
   cash: "Cash",

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Minus, Plus, Search } from "lucide-react";
+import { ArrowRightLeft, Minus, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 
 import { useCrudDialog } from "@/components/crud-dialog";
@@ -8,6 +8,7 @@ import { EmptyState, Page, Stat, TableSkeleton } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  defaultTransferTarget,
   toTransactionForm,
   TransactionDialog,
   type TransactionForm,
@@ -15,7 +16,7 @@ import {
 import { TransactionTable } from "@/features/transactions/transaction-table";
 import { useAll, useList } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
-import type { Beneficiary, PaymentMethod, Tag, Transaction } from "@/lib/types";
+import type { Beneficiary, PaymentMethod, Tag, Transaction, TransactionKind } from "@/lib/types";
 import { useFilters } from "@/stores/filters";
 
 export const Route = createFileRoute("/_app/transactions/")({
@@ -41,14 +42,16 @@ function TransactionsPage() {
   const unit = useFilters((s) => s.unit);
 
   const dialog = useCrudDialog<Transaction, TransactionForm>(toTransactionForm);
-  const openNew = (k: "income" | "expense") => {
+  const openNew = (k: TransactionKind) => {
     const active = methods.data?.filter((m) => m.is_active) ?? [];
     // Default to the bank account: that is where rent lands and most bills are paid from.
     const firstMethod = active.find((m) => m.kind === "bank_account") ?? active[0];
+    const from = firstMethod ? String(firstMethod.id) : "";
     dialog.openNew({
       kind: k,
       rental_unit: unit,
-      payment_method: firstMethod ? String(firstMethod.id) : "",
+      payment_method: from,
+      transfer_to: k === "transfer" ? defaultTransferTarget(methods.data, from) : "",
     });
   };
 
@@ -58,9 +61,12 @@ function TransactionsPage() {
   return (
     <Page
       filters
-      description="Every rand in and out of the rental account."
+      description="Every rand in and out of the rental accounts, and moved between them."
       actions={
         <>
+          <Button variant="outline" onClick={() => openNew("transfer")}>
+            <ArrowRightLeft /> Log transfer
+          </Button>
           <Button variant="outline" onClick={() => openNew("income")}>
             <Plus /> Log income
           </Button>
@@ -96,9 +102,10 @@ function TransactionsPage() {
           value={kind}
           onChange={(e) => setKind(e.target.value)}
         >
-          <option value="">In &amp; out</option>
+          <option value="">In, out &amp; transfers</option>
           <option value="income">Money in</option>
           <option value="expense">Money out</option>
+          <option value="transfer">Transfers</option>
         </NativeSelect>
         <NativeSelect
           aria-label="Tag"

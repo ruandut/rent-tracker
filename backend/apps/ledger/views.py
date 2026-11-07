@@ -1,6 +1,6 @@
 from datetime import date
 
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Count, F, OuterRef, Q, Subquery, Sum
 from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Coalesce, TruncMonth
 from rest_framework import viewsets
@@ -21,17 +21,34 @@ from .serializers import (
 
 INCOME = Q(transactions__kind=Transaction.Kind.INCOME)
 EXPENSE = Q(transactions__kind=Transaction.Kind.EXPENSE)
+TRANSFER_OUT = Q(transactions__kind=Transaction.Kind.TRANSFER)
 
 
 def _sum(condition: Q):
     return Coalesce(Sum("transactions__amount", filter=condition), ZERO)
 
 
+def _transfers_in(condition: Q | None = None):
+    """Money moved into each account. A subquery, because a second join would repeat rows."""
+    rows = (
+        Transaction.objects.filter(condition or Q(), transfer_to=OuterRef("pk"))
+        .order_by()
+        .values("transfer_to")
+        .annotate(total=Sum("amount"))
+        .values("total")
+    )
+    return Coalesce(Subquery(rows), ZERO)
+
+
+def _balance():
+    return (
+        F("opening_balance") + _sum(INCOME) - _sum(EXPENSE) - _sum(TRANSFER_OUT) + _transfers_in()
+    )
+
+
 def active_accounts():
     """Active payment methods with their all-time balance, which ignores any filters."""
-    return PaymentMethod.objects.filter(is_active=True).annotate(
-        balance=F("opening_balance") + _sum(INCOME) - _sum(EXPENSE)
-    )
+    return PaymentMethod.objects.filter(is_active=True).annotate(balance=_balance())
 
 
 class ProtectedDestroyMixin:
@@ -65,17 +82,20 @@ class RentalUnitViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
 
 
 class PaymentMethodViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
-    """Cards/accounts. `balance` is all-time; `income`/`expense` respect the filters."""
+    """Cards/accounts. `balance` is all-time; the in/out and transfer totals respect the filters."""
 
     serializer_class = PaymentMethodSerializer
     protected_message = "This payment method has transactions. Mark it inactive instead."
 
     def get_queryset(self):
-        in_range = RangeFilter.from_request(self.request).q(prefix="transactions__")
+        f = RangeFilter.from_request(self.request)
+        in_range = f.q(prefix="transactions__")
         return PaymentMethod.objects.annotate(
-            balance=F("opening_balance") + _sum(INCOME) - _sum(EXPENSE),
+            balance=_balance(),
             income=_sum(INCOME & in_range),
             expense=_sum(EXPENSE & in_range),
+            moved_in=_transfers_in(f.q()),
+            moved_out=_sum(TRANSFER_OUT & in_range),
         ).order_by("-is_active", "name")
 
 
@@ -113,7 +133,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Transaction.objects.select_related(
-            "payment_method", "rental_unit", "beneficiary"
+            "payment_method", "transfer_to", "rental_unit", "beneficiary"
         ).prefetch_related("tags")
         if self.action != "list":
             return qs
@@ -121,9 +141,10 @@ class TransactionViewSet(viewsets.ModelViewSet):
         qs = qs.filter(RangeFilter.from_request(self.request).q())
         if kind := params.get("kind"):
             qs = qs.filter(kind=kind)
-        for field in ("payment_method", "beneficiary"):
-            if value := params.get(field):
-                qs = qs.filter(**{f"{field}_id": value})
+        if method := params.get("payment_method"):
+            qs = qs.filter(Q(payment_method_id=method) | Q(transfer_to_id=method))
+        if beneficiary := params.get("beneficiary"):
+            qs = qs.filter(beneficiary_id=beneficiary)
         if tag := params.get("tag"):
             qs = qs.filter(tags__id=tag)
         if q := params.get("q"):
@@ -164,12 +185,18 @@ def dashboard(request):
         .order_by("-total")
     )
     recent = in_range.select_related(
-        "payment_method", "rental_unit", "beneficiary"
+        "payment_method", "transfer_to", "rental_unit", "beneficiary"
     ).prefetch_related("tags")[:8]
+    savings = sum(
+        (a.balance for a in accounts if a.kind == PaymentMethod.Kind.SAVINGS_ACCOUNT), ZERO
+    )
+    balance = sum((a.balance for a in accounts), ZERO)
 
     return Response(
         {
-            "balance": float(sum((a.balance for a in accounts), ZERO)),
+            "balance": float(balance),
+            "available": float(balance - savings),
+            "savings": float(savings),
             "accounts": [
                 {"id": a.id, "name": a.name, "kind": a.kind, "balance": float(a.balance)}
                 for a in accounts

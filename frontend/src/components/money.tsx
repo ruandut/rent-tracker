@@ -2,7 +2,7 @@ import { formatMoney } from "@/lib/format";
 import type { TransactionKind } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** An amount coloured by direction: green for money in, red (with a minus) for money out. */
+/** An amount coloured by direction: green for in, red with a minus for out, plain for a transfer. */
 export function Money({
   value,
   kind,

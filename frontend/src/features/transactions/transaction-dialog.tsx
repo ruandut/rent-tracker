@@ -23,6 +23,7 @@ export type TransactionForm = {
   date: string;
   description: string;
   payment_method: string;
+  transfer_to: string;
   rental_unit: string;
   beneficiary: string;
   tags: number[];
@@ -36,12 +37,62 @@ export const toTransactionForm = (row?: Transaction): TransactionForm => ({
   date: row?.date ?? today(),
   description: row?.description ?? "",
   payment_method: row ? String(row.payment_method) : "",
+  transfer_to: row?.transfer_to ? String(row.transfer_to) : "",
   rental_unit: row?.rental_unit ? String(row.rental_unit) : "",
   beneficiary: row?.beneficiary ? String(row.beneficiary) : "",
   tags: row?.tags ?? [],
   reference: row?.reference ?? "",
   notes: row?.notes ?? "",
 });
+
+const LOG_TITLES: Record<TransactionKind, string> = {
+  income: "Log income",
+  expense: "Log expense",
+  transfer: "Log transfer",
+};
+
+const KIND_LABELS: Record<TransactionKind, string> = {
+  income: "Money in",
+  expense: "Money out",
+  transfer: "Transfer",
+};
+
+/** Where a new transfer most likely goes: savings, unless that is where it is coming from. */
+export const defaultTransferTarget = (methods: PaymentMethod[] = [], from: string) => {
+  const others = methods.filter((m) => m.is_active && String(m.id) !== from);
+  const target = others.find((m) => m.kind === "savings_account") ?? others[0];
+  return target ? String(target.id) : "";
+};
+
+function AccountSelect({
+  id,
+  methods,
+  value,
+  exclude,
+  onChange,
+}: {
+  id: string;
+  methods?: PaymentMethod[];
+  value: string;
+  exclude?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <NativeSelect id={id} required value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="" disabled>
+        Choose…
+      </option>
+      {methods
+        ?.filter((m) => (m.is_active || String(m.id) === value) && String(m.id) !== exclude)
+        .map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name}
+            {m.last4 ? ` ••${m.last4}` : ""}
+          </option>
+        ))}
+    </NativeSelect>
+  );
+}
 
 export function TransactionDialog({
   dialog,
@@ -62,16 +113,30 @@ export function TransactionDialog({
         id: editing?.id,
         ...form,
         payment_method: Number(form.payment_method),
+        transfer_to: isTransfer ? idOrNull(form.transfer_to) : null,
         rental_unit: idOrNull(form.rental_unit),
         beneficiary: idOrNull(form.beneficiary),
       },
       { onSuccess: () => dialog.setOpen(false) },
     );
 
+  const isIncome = form.kind === "income";
+  const isTransfer = form.kind === "transfer";
+
   const toggleTag = (id: number) =>
     set("tags", form.tags.includes(id) ? form.tags.filter((t) => t !== id) : [...form.tags, id]);
 
-  const isIncome = form.kind === "income";
+  const chooseKind = (kind: TransactionKind) => {
+    set("kind", kind);
+    if (kind === "transfer" && !form.transfer_to)
+      set("transfer_to", defaultTransferTarget(methods.data, form.payment_method));
+  };
+
+  const chooseSource = (id: string) => {
+    set("payment_method", id);
+    if (id === form.transfer_to) set("transfer_to", "");
+  };
+
   return (
     <CrudDialog
       open={dialog.open}
@@ -79,7 +144,7 @@ export function TransactionDialog({
         dialog.setOpen(open);
         if (!open) save.reset();
       }}
-      title={editing ? "Edit transaction" : isIncome ? "Log income" : "Log expense"}
+      title={editing ? "Edit transaction" : LOG_TITLES[form.kind]}
       onSubmit={submit}
       saving={save.isPending}
       error={save.error?.message}
@@ -87,17 +152,17 @@ export function TransactionDialog({
       deleteLabel="this transaction"
     >
       <div
-        className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1"
+        className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1"
         role="radiogroup"
         aria-label="Direction"
       >
-        {(["income", "expense"] as const).map((kind) => (
+        {(["income", "expense", "transfer"] as const).map((kind) => (
           <button
             key={kind}
             type="button"
             role="radio"
             aria-checked={form.kind === kind}
-            onClick={() => set("kind", kind)}
+            onClick={() => chooseKind(kind)}
             className={cn(
               "rounded-md py-1.5 text-sm font-medium text-muted-foreground transition-colors",
               form.kind === kind && "bg-background text-foreground shadow-sm",
@@ -105,7 +170,7 @@ export function TransactionDialog({
               form.kind === kind && kind === "expense" && "text-rose-600 dark:text-rose-400",
             )}
           >
-            {kind === "income" ? "Money in" : "Money out"}
+            {KIND_LABELS[kind]}
           </button>
         ))}
       </div>
@@ -138,97 +203,117 @@ export function TransactionDialog({
       <Field label="Description (optional)" htmlFor="tx-description">
         <Input
           id="tx-description"
-          placeholder={isIncome ? "Rent March – Flat A" : "Plumber – geyser valve"}
+          placeholder={
+            isTransfer
+              ? "Rent to savings"
+              : isIncome
+                ? "Rent March – Flat A"
+                : "Plumber – geyser valve"
+          }
           value={form.description}
           onChange={(e) => set("description", e.target.value)}
         />
       </Field>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Payment method" htmlFor="tx-method">
-          <NativeSelect
-            id="tx-method"
-            required
-            value={form.payment_method}
-            onChange={(e) => set("payment_method", e.target.value)}
+      {isTransfer ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="From" htmlFor="tx-from">
+            <AccountSelect
+              id="tx-from"
+              methods={methods.data}
+              value={form.payment_method}
+              onChange={chooseSource}
+            />
+          </Field>
+          <Field label="To" htmlFor="tx-to">
+            <AccountSelect
+              id="tx-to"
+              methods={methods.data}
+              value={form.transfer_to}
+              exclude={form.payment_method}
+              onChange={(id) => set("transfer_to", id)}
+            />
+          </Field>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Payment method" htmlFor="tx-method">
+              <AccountSelect
+                id="tx-method"
+                methods={methods.data}
+                value={form.payment_method}
+                onChange={(id) => set("payment_method", id)}
+              />
+            </Field>
+            <Field label="Rental unit" htmlFor="tx-unit">
+              <NativeSelect
+                id="tx-unit"
+                value={form.rental_unit}
+                onChange={(e) => set("rental_unit", e.target.value)}
+              >
+                <option value="">General / not unit-specific</option>
+                {units.data?.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          </div>
+
+          <Field
+            label="Beneficiary"
+            htmlFor="tx-beneficiary"
+            hint={
+              isIncome
+                ? "Who the money came from (optional)."
+                : "Who received the money (optional)."
+            }
           >
-            <option value="" disabled>
-              Choose…
-            </option>
-            {methods.data
-              ?.filter((m) => m.is_active || String(m.id) === form.payment_method)
-              .map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                  {m.last4 ? ` ••${m.last4}` : ""}
+            <NativeSelect
+              id="tx-beneficiary"
+              value={form.beneficiary}
+              onChange={(e) => set("beneficiary", e.target.value)}
+            >
+              <option value="">None</option>
+              {people.data?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
                 </option>
               ))}
-          </NativeSelect>
-        </Field>
-        <Field label="Rental unit" htmlFor="tx-unit">
-          <NativeSelect
-            id="tx-unit"
-            value={form.rental_unit}
-            onChange={(e) => set("rental_unit", e.target.value)}
-          >
-            <option value="">General / not unit-specific</option>
-            {units.data?.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
-      </div>
+            </NativeSelect>
+          </Field>
 
-      <Field
-        label="Beneficiary"
-        htmlFor="tx-beneficiary"
-        hint={
-          isIncome ? "Who the money came from (optional)." : "Who received the money (optional)."
-        }
-      >
-        <NativeSelect
-          id="tx-beneficiary"
-          value={form.beneficiary}
-          onChange={(e) => set("beneficiary", e.target.value)}
-        >
-          <option value="">None</option>
-          {people.data?.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
-
-      <Field label="Tags">
-        <div className="flex flex-wrap gap-1.5">
-          {tags.data?.map((tag) => {
-            const on = form.tags.includes(tag.id);
-            return (
-              <button
-                key={tag.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleTag(tag.id)}
-                className={cn(
-                  "inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors",
-                  on
-                    ? cn(colorClass(tag.color), "border-transparent")
-                    : "text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {on && <Check className="size-3" />}
-                {tag.name}
-              </button>
-            );
-          })}
-          {tags.data?.length === 0 && (
-            <span className="text-sm text-muted-foreground">No tags yet.</span>
-          )}
-        </div>
-      </Field>
+          <Field label="Tags">
+            <div className="flex flex-wrap gap-1.5">
+              {tags.data?.map((tag) => {
+                const on = form.tags.includes(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleTag(tag.id)}
+                    className={cn(
+                      "inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors",
+                      on
+                        ? cn(colorClass(tag.color), "border-transparent")
+                        : "text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {on && <Check className="size-3" />}
+                    {tag.name}
+                  </button>
+                );
+              })}
+              {tags.data?.length === 0 && (
+                <span className="text-sm text-muted-foreground">No tags yet.</span>
+              )}
+            </div>
+          </Field>
+        </>
+      )}
 
       <Field label="Reference" htmlFor="tx-reference">
         <Input

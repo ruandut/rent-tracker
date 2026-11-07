@@ -14,6 +14,11 @@ import { formatDate } from "@/lib/format";
 import type { Tag, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const accountLabel = (row: Transaction) =>
+  row.kind === "transfer"
+    ? `${row.payment_method_name} → ${row.transfer_to_name}`
+    : row.payment_method_name;
+
 export function TransactionTable({
   rows,
   onSelect,
@@ -50,7 +55,12 @@ export function TransactionTable({
               <TableCell className="text-muted-foreground">{formatDate(row.date)}</TableCell>
               <TableCell className={flexCell}>
                 <div className="truncate font-medium" title={row.description || undefined}>
-                  {row.description || <span className="text-muted-foreground">No description</span>}
+                  {row.description ||
+                    (row.kind === "transfer" ? (
+                      "Transfer"
+                    ) : (
+                      <span className="text-muted-foreground">No description</span>
+                    ))}
                 </div>
                 {/* Always present and one line tall, so every row is the same height. */}
                 <div className="mt-1 flex h-5 items-center gap-1 overflow-hidden">
@@ -64,7 +74,7 @@ export function TransactionTable({
                   )}
                   {row.tags.length === 0 && !(compact && row.beneficiary_name) && (
                     <span className="truncate text-xs text-muted-foreground">
-                      {row.payment_method_name}
+                      {accountLabel(row)}
                     </span>
                   )}
                 </div>
@@ -78,7 +88,7 @@ export function TransactionTable({
                 </TableCell>
               )}
               <TableCell className="hidden max-w-40 truncate text-muted-foreground lg:table-cell">
-                {row.payment_method_name}
+                {accountLabel(row)}
               </TableCell>
               <TableCell className="text-right font-medium">
                 <Money value={row.amount} kind={row.kind} />

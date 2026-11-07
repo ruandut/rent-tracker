@@ -16,6 +16,8 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
     balance = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     income = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     expense = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    moved_in = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    moved_out = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
     class Meta:
         model = PaymentMethod
@@ -31,6 +33,8 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
             "balance",
             "income",
             "expense",
+            "moved_in",
+            "moved_out",
         ]
 
     def validate_last4(self, value):
@@ -61,6 +65,9 @@ class TagSerializer(serializers.ModelSerializer):
 
 class TransactionSerializer(serializers.ModelSerializer):
     payment_method_name = serializers.CharField(source="payment_method.name", read_only=True)
+    transfer_to_name = serializers.CharField(
+        source="transfer_to.name", read_only=True, default=None
+    )
     rental_unit_name = serializers.CharField(
         source="rental_unit.name", read_only=True, default=None
     )
@@ -79,6 +86,8 @@ class TransactionSerializer(serializers.ModelSerializer):
             "description",
             "payment_method",
             "payment_method_name",
+            "transfer_to",
+            "transfer_to_name",
             "rental_unit",
             "rental_unit_name",
             "beneficiary",
@@ -95,3 +104,18 @@ class TransactionSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Amount must be more than zero.")
         return value
+
+    def validate(self, attrs):
+        current = self.instance
+        kind = attrs.get("kind", current.kind if current else None)
+        if kind != Transaction.Kind.TRANSFER:
+            return {**attrs, "transfer_to": None}
+
+        source = attrs.get("payment_method", current.payment_method if current else None)
+        target = attrs.get("transfer_to", current.transfer_to if current else None)
+        if target is None:
+            raise serializers.ValidationError({"transfer_to": "Choose where the money went."})
+        if target == source:
+            raise serializers.ValidationError({"transfer_to": "Choose a different account."})
+        # A transfer is between your own accounts, so it has no unit, payee or spending tag.
+        return {**attrs, "rental_unit": None, "beneficiary": None, "tags": []}
