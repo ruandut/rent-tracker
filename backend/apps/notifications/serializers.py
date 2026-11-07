@@ -4,6 +4,8 @@ from django.core.validators import validate_email
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.realms.access import RealmScopedSerializer
+
 from .crypto import encrypt
 from .models import DeliverySettings, SummarySchedule
 
@@ -47,7 +49,7 @@ class DeliverySettingsSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-class SummaryScheduleSerializer(serializers.ModelSerializer):
+class SummaryScheduleSerializer(RealmScopedSerializer):
     class Meta:
         model = SummarySchedule
         fields = [

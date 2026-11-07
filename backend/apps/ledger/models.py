@@ -9,11 +9,13 @@ from django.db import models
 from django.db.models import F, Q, Sum
 from django.db.models.functions import Coalesce
 
+from apps.realms.models import TenantModel
+
 ZERO = Decimal("0.00")
 
 
-class RentalUnit(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+class RentalUnit(TenantModel):
+    name = models.CharField(max_length=100)
     address = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -21,12 +23,17 @@ class RentalUnit(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["realm", "name"], name="rental_unit_name_unique_in_realm"
+            )
+        ]
 
     def __str__(self):
         return self.name
 
 
-class PaymentMethod(models.Model):
+class PaymentMethod(TenantModel):
     class Kind(models.TextChoices):
         BANK_ACCOUNT = "bank_account", "Bank account"
         SAVINGS_ACCOUNT = "savings_account", "Savings account"
@@ -35,7 +42,7 @@ class PaymentMethod(models.Model):
         CASH = "cash", "Cash"
         OTHER = "other", "Other"
 
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.BANK_ACCOUNT)
     institution = models.CharField(max_length=100, blank=True)
     last4 = models.CharField("last 4 digits", max_length=4, blank=True)
@@ -47,15 +54,20 @@ class PaymentMethod(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["realm", "name"], name="payment_method_name_unique_in_realm"
+            )
+        ]
 
     def __str__(self):
         return self.name
 
 
-class Beneficiary(models.Model):
+class Beneficiary(TenantModel):
     """Someone a payment goes to (or comes from), e.g. a partner who gets a share of the rent."""
 
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     relationship = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -63,19 +75,27 @@ class Beneficiary(models.Model):
     class Meta:
         ordering = ["name"]
         verbose_name_plural = "beneficiaries"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["realm", "name"], name="beneficiary_name_unique_in_realm"
+            )
+        ]
 
     def __str__(self):
         return self.name
 
 
-class Tag(models.Model):
-    name = models.CharField(max_length=50, unique=True)
+class Tag(TenantModel):
+    name = models.CharField(max_length=50)
     color = models.CharField(max_length=20, default="slate")
-    # System tags (e.g. "maintenance", created by a migration) can be renamed but not deleted.
+    # System tags (e.g. "maintenance", made with each realm) can be renamed but not deleted.
     is_system = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["realm", "name"], name="tag_name_unique_in_realm")
+        ]
 
     def __str__(self):
         return self.name
@@ -91,7 +111,7 @@ class TransactionQuerySet(models.QuerySet):
         return {**agg, "net": agg["income"] - agg["expense"]}
 
 
-class Transaction(models.Model):
+class Transaction(TenantModel):
     class Kind(models.TextChoices):
         INCOME = "income", "Income"
         EXPENSE = "expense", "Expense"

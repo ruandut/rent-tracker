@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { ThemeProvider } from "next-themes";
@@ -7,14 +7,12 @@ import { createRoot } from "react-dom/client";
 
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { queryClient } from "@/lib/query-client";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
 // State split: TanStack Query owns server state (anything from /api); Zustand owns client
-// state (auth tokens, the shared filters); TanStack Router owns the URL.
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
-});
+// state (auth tokens, the current realm, the shared filters); TanStack Router owns the URL.
 
 const router = createRouter({
   routeTree,

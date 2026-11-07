@@ -15,6 +15,7 @@ from decimal import Decimal
 from django.db import models
 
 from apps.ledger.models import RentalUnit
+from apps.realms.models import TenantModel
 
 ZERO = Decimal("0.00")
 
@@ -54,10 +55,10 @@ class Destination(models.TextChoices):
     NONE = "none", "Nowhere, bill only"
 
 
-class BillTemplate(models.Model):
+class BillTemplate(TenantModel):
     """A municipality's bill layout. `definition` is checked by TemplateDefinitionSerializer."""
 
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     is_default = models.BooleanField(default=False)
     definition = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -67,17 +68,20 @@ class BillTemplate(models.Model):
         ordering = ["-is_default", "name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["is_default"],
+                fields=["realm"],
                 condition=models.Q(is_default=True),
-                name="one_default_bill_template",
-            )
+                name="one_default_bill_template_per_realm",
+            ),
+            models.UniqueConstraint(
+                fields=["realm", "name"], name="bill_template_name_unique_in_realm"
+            ),
         ]
 
     def __str__(self):
         return self.name
 
 
-class Bill(models.Model):
+class Bill(TenantModel):
     template = models.ForeignKey(
         BillTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name="bills"
     )
@@ -109,7 +113,7 @@ class Bill(models.Model):
         ordering = ["-period", "-id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["account_number", "period"], name="one_bill_per_account_month"
+                fields=["realm", "account_number", "period"], name="one_bill_per_account_month"
             )
         ]
 

@@ -4,7 +4,8 @@ from pathlib import Path
 
 from django.core.validators import FileExtensionValidator
 from rest_framework import serializers
-from rest_framework.validators import UniqueTogetherValidator
+
+from apps.realms.access import RealmScopedSerializer
 
 from .models import (
     BILL_FIELDS,
@@ -93,7 +94,8 @@ class TemplateDefinitionSerializer(serializers.Serializer):
         return sections
 
 
-class BillTemplateSerializer(serializers.ModelSerializer):
+class BillTemplateSerializer(RealmScopedSerializer):
+    realm_unique = {("name",): "There's already a template with this name."}
     definition = serializers.JSONField()
     bill_count = serializers.IntegerField(read_only=True, default=0)
 
@@ -140,7 +142,7 @@ def _custom_values(fields: list[dict], builtin: dict, values: dict) -> dict:
     return clean
 
 
-class BillLineSerializer(serializers.ModelSerializer):
+class BillLineSerializer(RealmScopedSerializer):
     total = serializers.DecimalField(max_digits=13, decimal_places=2, read_only=True)
     extra = serializers.DictField(required=False)
 
@@ -164,7 +166,7 @@ class BillLineSerializer(serializers.ModelSerializer):
         ]
 
 
-class BillUnitSerializer(serializers.ModelSerializer):
+class BillUnitSerializer(RealmScopedSerializer):
     rental_unit_name = serializers.CharField(source="rental_unit.name", read_only=True)
     total = serializers.SerializerMethodField()
     lines = BillLineSerializer(many=True, required=False)
@@ -177,7 +179,7 @@ class BillUnitSerializer(serializers.ModelSerializer):
         return sum((line.total for line in share.lines.all()), ZERO)
 
 
-class BillSummarySerializer(serializers.ModelSerializer):
+class BillSummarySerializer(RealmScopedSerializer):
     """A bill without its lines or raw content: what the list screen needs.
 
     With `unit` in the context, the money covers only that unit's share.
@@ -261,6 +263,9 @@ class BillSummarySerializer(serializers.ModelSerializer):
 
 
 class BillSerializer(BillSummarySerializer):
+    realm_unique = {
+        ("account_number", "period"): "There is already a bill for this account and month."
+    }
     units = BillUnitSerializer(many=True, allow_empty=False)
     attachment = serializers.SerializerMethodField()
     extra = serializers.DictField(required=False)
@@ -276,13 +281,6 @@ class BillSerializer(BillSummarySerializer):
         ]
         read_only_fields = ["layout"]
         extra_kwargs = {"template": {"required": True, "allow_null": False}}
-        validators = [
-            UniqueTogetherValidator(
-                queryset=Bill.objects.all(),
-                fields=["account_number", "period"],
-                message="There is already a bill for this account and month.",
-            )
-        ]
 
     def to_internal_value(self, data):
         # Normalise before the uniqueness check runs, so any day in a month collides correctly.

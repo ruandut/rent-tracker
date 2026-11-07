@@ -333,3 +333,44 @@ export const UTILITY_KINDS: Record<UtilityKind, { label: string; unit: string }>
   water: { label: "Water", unit: "kL" },
   electricity: { label: "Electricity", unit: "kWh" },
 };
+
+// --- realms ---------------------------------------------------------------------------------
+
+export type RealmRole = "admin" | "member";
+
+export type Realm = {
+  id: Id;
+  name: string;
+  role: RealmRole;
+  member_count: number;
+  created_at: string;
+};
+
+export type RealmMember = {
+  id: Id;
+  username: string;
+  email: string;
+  role: RealmRole;
+  joined_at: string;
+};
+
+export type RealmInvitation = {
+  id: Id;
+  email: string;
+  role: RealmRole;
+  status: "pending" | "accepted" | "rejected";
+  invited_by: string | null;
+  created_at: string;
+  /** The register link, while the invitation is pending. */
+  link: string | null;
+  /** Only on the response to sending one. */
+  email_sent?: boolean;
+};
+
+export type ReceivedInvitation = {
+  id: Id;
+  realm_name: string;
+  role: RealmRole;
+  invited_by: string | null;
+  created_at: string;
+};

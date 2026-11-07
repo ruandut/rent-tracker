@@ -1,6 +1,8 @@
-from rest_framework import viewsets
 from rest_framework.decorators import action, api_view
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+
+from apps.realms.access import RealmScopedViewSet
 
 from .delivery import DeliveryError
 from .models import DeliverySettings, SummarySchedule
@@ -8,7 +10,7 @@ from .serializers import DeliverySettingsSerializer, SummaryScheduleSerializer
 from .services import reschedule, send_summary
 
 
-class SummaryScheduleViewSet(viewsets.ModelViewSet):
+class SummaryScheduleViewSet(RealmScopedViewSet):
     queryset = SummarySchedule.objects.all()
     serializer_class = SummaryScheduleSerializer
 
@@ -39,9 +41,13 @@ class SummaryScheduleViewSet(viewsets.ModelViewSet):
 
 @api_view(["GET", "PATCH"])
 def delivery_settings(request):
-    settings = DeliverySettings.load()
+    """The realm's mail server and Telegram bot. Anyone in the realm sees whether they're set;
+    only admins change them."""
+    settings = DeliverySettings.load(request.realm)
     if request.method == "GET":
         return Response(DeliverySettingsSerializer(settings).data)
+    if not request.membership.is_admin:
+        raise PermissionDenied("Only realm admins can change delivery settings.")
     serializer = DeliverySettingsSerializer(settings, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()

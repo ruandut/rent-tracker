@@ -13,8 +13,10 @@ URL = "/api/bills/"
 
 
 @pytest.fixture
-def units(db):
-    return RentalUnit.objects.create(name="Main"), RentalUnit.objects.create(name="Flat")
+def units(realm):
+    return RentalUnit.objects.create(realm=realm, name="Main"), RentalUnit.objects.create(
+        realm=realm, name="Flat"
+    )
 
 
 def line(section, excl, vat="0", **extra):
@@ -85,8 +87,8 @@ def test_one_printed_bill_splits_between_units_and_fills_both_tables(api, units)
     assert (charge.rental_unit, charge.amount) == (main, Decimal("900.00"))
 
 
-def test_any_number_of_units_can_share_a_bill(api, units):
-    third = RentalUnit.objects.create(name="Third")
+def test_any_number_of_units_can_share_a_bill(api, units, realm):
+    third = RentalUnit.objects.create(realm=realm, name="Third")
     payload = body(units)
     payload["units"].append({"rental_unit": third.id, "lines": [line("water", "5.00")]})
     assert api.post(URL, payload, format="json").status_code == 201
@@ -168,10 +170,10 @@ def test_a_header_only_edit_keeps_the_units(api, units):
     assert UtilityReading.objects.count() == 2
 
 
-def test_deleting_a_bill_removes_only_its_rows(api, units):
+def test_deleting_a_bill_removes_only_its_rows(api, units, realm):
     main, _ = units
     manual = UtilityReading.objects.create(
-        rental_unit=main, kind="electricity", period=date(2026, 1, 1), usage=5
+        realm=realm, rental_unit=main, kind="electricity", period=date(2026, 1, 1), usage=5
     )
     bill = api.post(URL, body(units), format="json").json()
     assert api.delete(f"{URL}{bill['id']}/").status_code == 204
@@ -179,10 +181,10 @@ def test_deleting_a_bill_removes_only_its_rows(api, units):
     assert not MunicipalCharge.objects.exists()
 
 
-def test_a_reading_entered_by_hand_blocks_the_bill_rather_than_being_overwritten(api, units):
+def test_a_reading_entered_by_hand_blocks_the_bill_rather_than_being_overwritten(api, units, realm):
     main, _ = units
     manual = UtilityReading.objects.create(
-        rental_unit=main, kind="water", period=date(2026, 10, 1), usage=5
+        realm=realm, rental_unit=main, kind="water", period=date(2026, 10, 1), usage=5
     )
     res = api.post(URL, body(units), format="json")
     assert res.status_code == 400
@@ -297,17 +299,17 @@ def custom_definition():
     }
 
 
-def custom_template():
+def custom_template(realm):
     definition = TemplateDefinitionSerializer(data=custom_definition())
     definition.is_valid(raise_exception=True)
     return BillTemplate.objects.update_or_create(
-        name="Other city", defaults={"definition": definition.validated_data}
+        realm=realm, name="Other city", defaults={"definition": definition.validated_data}
     )[0]
 
 
 def custom_body(units, **overrides):
     return {
-        "template": custom_template().id,
+        "template": custom_template(units[0].realm).id,
         "period": "2026-10-01",
         "account_number": "A1",
         "extra": {"ward": "3"},
@@ -324,8 +326,8 @@ def custom_body(units, **overrides):
     }
 
 
-def test_the_current_fields_are_the_default_template(api):
-    custom_template()
+def test_the_current_fields_are_the_default_template(api, realm):
+    custom_template(realm)
     templates = api.get("/api/bill-templates/").json()
     assert [t["is_default"] for t in templates] == [True, False]
     definition = templates[0]["definition"]
@@ -400,9 +402,9 @@ def test_editing_a_template_leaves_logged_bills_alone(api, units):
     assert res.status_code == 200, res.json()
 
 
-def test_a_bill_cannot_change_template_after_logging(api, units):
+def test_a_bill_cannot_change_template_after_logging(api, units, realm):
     bill = api.post(URL, body(units), format="json").json()
-    other = custom_template()
+    other = custom_template(realm)
     res = api.patch(f"{URL}{bill['id']}/", {"template": other.id}, format="json")
     assert res.status_code == 200
     assert res.json()["template"] == bill["template"]

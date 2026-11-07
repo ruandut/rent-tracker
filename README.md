@@ -29,7 +29,8 @@ make web       # Vite+ on http://localhost:5174  ← open this
 make worker    # Hatchet worker (optional for now)
 ```
 
-Log in with the seeded demo account **admin / admin**.
+Log in with the seeded demo account **admin / admin**. Its data is in the **Demo rentals** realm,
+or in **My rentals** if your database predates realms.
 
 ## Everyday commands
 
@@ -74,8 +75,15 @@ login.
 5. Open the address the generator printed and sign in. The password is the `ADMIN_PASSWORD` value
    in the Compose file.
 
-The app starts empty: add your rental units and payment methods first. Demo data never reaches
-it, because `seed` only runs with `DEBUG=true`.
+The app starts with one empty realm, **My rentals**, owned by that first login: add your rental
+units and payment methods first. Demo data never reaches it, because `seed` only runs with
+`DEBUG=true`.
+
+**Inviting people:** on **Realms**, open a realm and choose **Invite**. Each invitation has a link
+to copy and send yourself. To have the app email it too, add a mail server to the `web` service's
+`environment` in your Compose file, for example
+`EMAIL_URL: smtp+tls://user:password@smtp.example.com:587` and
+`DEFAULT_FROM_EMAIL: Rent Tracker <you@example.com>`. Without them, nothing is emailed.
 
 To change the address or port later, run `make compose` again and replace the project's Compose
 file with the result. It keeps the existing secrets, so the database stays reachable. Keep that
@@ -125,7 +133,17 @@ router.
 | Tags (`maintenance` is a system tag: renameable, not deletable) | `/tags` | `/api/tags/` |
 | Scheduled summaries by email or Telegram | `/summaries` | `/api/notifications/` |
 | Municipal bills, line by line, with the raw bill | `/bills` | `/api/bills/` |
+| Realms: create, switch, members, invitations, leave, delete | `/realms` | `/api/realms/` |
+| Joining from an invitation link (there's no open sign-up) | `/register?invite=…` | `/api/auth/register/` |
 
+- **Realms:** multi-tenancy. A realm is one set of books, and every row in the domain apps belongs
+  to one (`TenantModel` in `apps/realms/models.py`). People join as an admin or a member; only
+  admins invite, change roles, change delivery settings, rename or delete the realm. Each browser
+  tab sends its realm as the `X-Realm` header, so two tabs can be in different realms; without it
+  the user's last-chosen realm is used. `InRealm` is a default DRF permission, so every endpoint
+  is realm-gated unless it opts out, and `RealmScopedViewSet` and `RealmScopedSerializer`
+  (`apps/realms/access.py`) keep lookups, new rows and foreign keys inside the realm. A new realm
+  gets the maintenance tag and the George template through the `realm_created` signal.
 - **Filters:** the date range + rental unit show on the screens that use them, via `<Page filters>`,
   and carry between those screens. They live in a
   persisted Zustand store (`frontend/src/stores/filters.ts`) and go to the API as
@@ -149,7 +167,8 @@ router.
 - **Hatchet:** apps expose tasks via `TASKS = [...]` in `apps/<app>/tasks.py`; `make worker` registers
   them. `send-due-summaries` runs every minute and sends any summary that's due. `ledger-ping` is
   a placeholder where email ingestion will go (`Transaction.source = "email"` is already reserved).
-- **Summaries:** set up email or Telegram on the Summaries screen, then schedule a balance and
+- **Summaries:** each realm has its own mail server, Telegram bot and schedules. Set up email or
+  Telegram on the Summaries screen, then schedule a balance and
   totals summary. **Send now** tests delivery straight away. Scheduled sends need the worker
   running, and if it was down they send once rather than catching up. Passwords and bot tokens are
   encrypted using `DJANGO_SECRET_KEY`. Telegram bots can't message phone numbers, so they need a

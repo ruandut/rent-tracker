@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { isLoggedIn, login } from "@/stores/auth";
+import { useRealm } from "@/stores/realm";
 
 export const Route = createFileRoute("/login")({
   beforeLoad: () => {
@@ -23,7 +24,11 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const signIn = useMutation({
     mutationFn: () => login(username, password),
-    onSuccess: () => navigate({ to: "/" }),
+    onSuccess: () => {
+      // Start from the realm this account last used, not whatever this browser last showed.
+      useRealm.getState().setRealmId(null);
+      void navigate({ to: "/" });
+    },
   });
 
   return (

@@ -1,13 +1,13 @@
-from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 
 from apps.core.filters import RangeFilter
+from apps.realms.access import RealmScopedViewSet
 
 from .models import MunicipalCharge, UtilityReading
 from .serializers import MunicipalChargeSerializer, UtilityReadingSerializer
 
 
-class RangeFilteredViewSet(viewsets.ModelViewSet):
+class RangeFilteredViewSet(RealmScopedViewSet):
     """Applies the shared date range (on `period`) + unit filter to list requests."""
 
     def get_queryset(self):

@@ -1,8 +1,8 @@
 from apps.ledger.models import RentalUnit
 
 
-def test_readings_normalise_period_and_reject_duplicates(api):
-    unit = RentalUnit.objects.create(name="A")
+def test_readings_normalise_period_and_reject_duplicates(api, realm):
+    unit = RentalUnit.objects.create(realm=realm, name="A")
     body = {"rental_unit": unit.id, "kind": "water", "period": "2026-03-17", "usage": "12.5"}
     res = api.post("/api/readings/", body, format="json")
     assert res.status_code == 201, res.json()
@@ -13,9 +13,9 @@ def test_readings_normalise_period_and_reject_duplicates(api):
     )
 
 
-def test_charges_filter_by_unit_and_range(api):
-    a = RentalUnit.objects.create(name="A")
-    b = RentalUnit.objects.create(name="B")
+def test_charges_filter_by_unit_and_range(api, realm):
+    a = RentalUnit.objects.create(realm=realm, name="A")
+    b = RentalUnit.objects.create(realm=realm, name="B")
     for unit, period in [(a, "2026-01-01"), (a, "2026-05-01"), (b, "2026-05-01")]:
         api.post(
             "/api/charges/",

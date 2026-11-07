@@ -1,7 +1,9 @@
-"""Demo data: a login, two units, accounts, people, tags and ~12 months of activity.
+"""Demo data: a login and a realm with two units, accounts, people, tags and ~12 months of
+activity.
 
 Idempotent: re-running only tops up what's missing (the transaction history is created
-once, when there are no transactions yet). `--reset` wipes ledger + utility data first.
+once, when the realm has no transactions yet). `--reset` wipes the demo realm's ledger, bill and
+utility data first.
 """
 
 import random
@@ -15,9 +17,12 @@ from django.db import transaction
 
 from apps.bills.models import Bill
 from apps.ledger.models import Beneficiary, PaymentMethod, RentalUnit, Tag, Transaction
+from apps.realms.models import RealmMembership
+from apps.realms.services import create_realm
 from apps.utilities.models import MunicipalCharge, UtilityReading
 
 DEMO_USER = ("admin", "admin")
+DEMO_REALM = "Demo rentals"
 UNITS = [
     ("Flat A", "12 Oak Street, Unit A", Decimal("9500")),
     ("Cottage", "12 Oak Street, Garden Cottage", Decimal("6800")),
@@ -59,16 +64,6 @@ class Command(BaseCommand):
             raise CommandError("seed only runs with DEBUG=true")
         random.seed(42)
 
-        if reset:
-            Bill.objects.all().delete()
-            MunicipalCharge.objects.all().delete()
-            UtilityReading.objects.all().delete()
-            Transaction.objects.all().delete()
-            PaymentMethod.objects.all().delete()
-            Beneficiary.objects.all().delete()
-            RentalUnit.objects.all().delete()
-            Tag.objects.filter(is_system=False).delete()
-
         user, created = get_user_model().objects.get_or_create(
             username=DEMO_USER[0], defaults={"is_staff": True, "is_superuser": True}
         )
@@ -76,12 +71,28 @@ class Command(BaseCommand):
             user.set_password(DEMO_USER[1])
             user.save()
 
+        # The demo user's oldest realm, which is where the realms migration put earlier demo data.
+        membership = (
+            RealmMembership.objects.filter(user=user).select_related("realm").order_by("id").first()
+        )
+        realm = membership.realm if membership else create_realm(user, DEMO_REALM)
+
+        if reset:
+            for model in (Bill, MunicipalCharge, UtilityReading, Transaction):
+                model.objects.filter(realm=realm).delete()
+            for model in (PaymentMethod, Beneficiary, RentalUnit):
+                model.objects.filter(realm=realm).delete()
+            Tag.objects.filter(realm=realm, is_system=False).delete()
+
         units = {
-            name: RentalUnit.objects.get_or_create(name=name, defaults={"address": address})[0]
+            name: RentalUnit.objects.get_or_create(
+                realm=realm, name=name, defaults={"address": address}
+            )[0]
             for name, address, _ in UNITS
         }
         rent = {name: amount for name, _, amount in UNITS}
         cheque, _ = PaymentMethod.objects.get_or_create(
+            realm=realm,
             name="Rental cheque account",
             defaults={
                 "kind": PaymentMethod.Kind.BANK_ACCOUNT,
@@ -91,6 +102,7 @@ class Command(BaseCommand):
             },
         )
         card, _ = PaymentMethod.objects.get_or_create(
+            realm=realm,
             name="Rental credit card",
             defaults={
                 "kind": PaymentMethod.Kind.CREDIT_CARD,
@@ -99,17 +111,18 @@ class Command(BaseCommand):
             },
         )
         wife, _ = Beneficiary.objects.get_or_create(
-            name="Wife", defaults={"relationship": "Spouse – share of the rent"}
+            realm=realm, name="Wife", defaults={"relationship": "Spouse – share of the rent"}
         )
         handyman, _ = Beneficiary.objects.get_or_create(
-            name="Sipho (handyman)", defaults={"relationship": "Contractor"}
+            realm=realm, name="Sipho (handyman)", defaults={"relationship": "Contractor"}
         )
         tags = {
-            name: Tag.objects.get_or_create(name=name, defaults={"color": c})[0] for name, c in TAGS
+            name: Tag.objects.get_or_create(realm=realm, name=name, defaults={"color": c})[0]
+            for name, c in TAGS
         }
-        tags["maintenance"] = Tag.objects.get(name="maintenance")
+        tags["maintenance"] = Tag.objects.get(realm=realm, name="maintenance")
 
-        if Transaction.objects.exists():
+        if Transaction.objects.filter(realm=realm).exists():
             self.stdout.write("Transactions already exist; skipping history (use --reset).")
             return
 
@@ -119,6 +132,7 @@ class Command(BaseCommand):
             if day > today:
                 return
             tx = Transaction.objects.create(
+                realm=realm,
                 kind=kind,
                 amount=_d(amount),
                 date=day,
@@ -147,6 +161,7 @@ class Command(BaseCommand):
                 power = random.uniform(220, 480)
                 water_cost, power_cost = water * 38.5, power * 3.4
                 UtilityReading.objects.create(
+                    realm=realm,
                     rental_unit=unit,
                     kind=UtilityReading.Kind.WATER,
                     period=month,
@@ -154,6 +169,7 @@ class Command(BaseCommand):
                     cost=_d(water_cost),
                 )
                 UtilityReading.objects.create(
+                    realm=realm,
                     rental_unit=unit,
                     kind=UtilityReading.Kind.ELECTRICITY,
                     period=month,
@@ -179,6 +195,7 @@ class Command(BaseCommand):
                     tag_names=["rates & taxes"],
                 )
                 MunicipalCharge.objects.create(
+                    realm=realm,
                     rental_unit=unit,
                     category=MunicipalCharge.Category.RATES_TAXES,
                     period=month,
@@ -186,6 +203,7 @@ class Command(BaseCommand):
                     transaction=paid,
                 )
                 MunicipalCharge.objects.create(
+                    realm=realm,
                     rental_unit=unit,
                     category=MunicipalCharge.Category.REFUSE,
                     period=month,
@@ -231,9 +249,10 @@ class Command(BaseCommand):
                     tag_names=["garden"],
                 )
 
+        count = Transaction.objects.filter(realm=realm).count()
         self.stdout.write(
             self.style.SUCCESS(
-                f"Seeded {Transaction.objects.count()} transactions. Log in as "
-                f"{DEMO_USER[0]} / {DEMO_USER[1]}."
+                f"Seeded {count} transactions in {realm}. "
+                f"Log in as {DEMO_USER[0]} / {DEMO_USER[1]}."
             )
         )

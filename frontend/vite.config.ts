@@ -26,7 +26,8 @@ export default defineConfig({
   server: {
     port: 5174,
     // Dev proxy: the browser talks to one origin; Vite forwards API traffic to Django.
-    proxy: { "/api": "http://localhost:8001" },
+    // Keeps the browser's Host, so links Django builds (realm invitations) point at this server.
+    proxy: { "/api": { target: "http://localhost:8001", changeOrigin: false } },
   },
   plugins: lazyPlugins(() => [
     // Must come before react(): generates src/routeTree.gen.ts from the src/routes/ folders.

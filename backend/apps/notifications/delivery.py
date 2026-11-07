@@ -68,7 +68,7 @@ def send_telegram(settings: DeliverySettings, chat_id: str, subject: str, body: 
 
 
 def deliver(schedule: SummarySchedule, subject: str, body: str) -> None:
-    settings = DeliverySettings.load()
+    settings = DeliverySettings.load(schedule.realm)
     if schedule.channel == SummarySchedule.Channel.EMAIL:
         send_email(settings, schedule.recipient, subject, body)
     else:

@@ -13,9 +13,9 @@ def save_template(template: BillTemplate | None, fields: dict) -> BillTemplate:
         for name, value in fields.items():
             setattr(template, name, value)
     if template.is_default:
-        BillTemplate.objects.exclude(pk=template.pk).filter(is_default=True).update(
-            is_default=False
-        )
+        BillTemplate.objects.filter(realm=template.realm, is_default=True).exclude(
+            pk=template.pk
+        ).update(is_default=False)
     template.save()
     return template
 

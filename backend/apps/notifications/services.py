@@ -16,7 +16,7 @@ def reschedule(schedule: SummarySchedule) -> None:
 
 
 def send_summary(schedule: SummarySchedule) -> None:
-    subject, body = build_summary()
+    subject, body = build_summary(schedule.realm)
     deliver(schedule, subject, body)
 
 
@@ -24,7 +24,9 @@ def _claim_next_due(now) -> SummarySchedule | None:
     """Moves one due schedule to its next run before sending, so a crash can't double-send."""
     with transaction.atomic():
         schedule = (
-            SummarySchedule.objects.select_for_update(skip_locked=True)
+            # Every realm's schedules: the worker runs outside any one realm.
+            SummarySchedule.objects.select_for_update(skip_locked=True, of=("self",))
+            .select_related("realm")
             .filter(is_enabled=True, next_run_at__lte=now)
             .first()
         )

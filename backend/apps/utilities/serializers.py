@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
+from apps.realms.access import RealmScopedSerializer
+
 from .models import MunicipalCharge, UtilityReading
 
 
@@ -8,7 +10,7 @@ def _first_of_month(value):
     return value.replace(day=1)
 
 
-class UtilityReadingSerializer(serializers.ModelSerializer):
+class UtilityReadingSerializer(RealmScopedSerializer):
     rental_unit_name = serializers.CharField(source="rental_unit.name", read_only=True)
 
     class Meta:
@@ -42,7 +44,7 @@ class UtilityReadingSerializer(serializers.ModelSerializer):
         return value
 
 
-class MunicipalChargeSerializer(serializers.ModelSerializer):
+class MunicipalChargeSerializer(RealmScopedSerializer):
     rental_unit_name = serializers.CharField(source="rental_unit.name", read_only=True)
 
     class Meta:

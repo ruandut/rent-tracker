@@ -1,8 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { queryClient } from "@/lib/query-client";
+import type { RealmRole } from "@/lib/types";
 import { refreshAccessToken, useAuth } from "@/stores/auth";
 import { useFilterParams } from "@/stores/filters";
+import { useRealm } from "@/stores/realm";
 
 export class ApiError extends Error {
   status: number;
@@ -41,6 +44,8 @@ async function authedFetch(path: string, init: RequestInit): Promise<Response> {
     if (!headers.has("Content-Type") && !(init.body instanceof FormData))
       headers.set("Content-Type", "application/json");
     if (token) headers.set("Authorization", `Bearer ${token}`);
+    const { realmId } = useRealm.getState();
+    if (realmId !== null && !headers.has("X-Realm")) headers.set("X-Realm", String(realmId));
     return fetch(path, { ...init, headers });
   };
 
@@ -52,6 +57,17 @@ async function authedFetch(path: string, init: RequestInit): Promise<Response> {
   if (res.status === 401) {
     useAuth.getState().clear();
     window.location.assign("/login");
+  }
+  if (res.status === 403) {
+    // Removed from this realm, or it was deleted: /me works out where to go instead.
+    const code = (
+      (await res
+        .clone()
+        .json()
+        .catch(() => null)) as { code?: string } | null
+    )?.code;
+    if (code === "not_member" || code === "no_realm")
+      void queryClient.invalidateQueries({ queryKey: ["me"] });
   }
   return res;
 }
@@ -134,4 +150,20 @@ export function useRemove(resource: string, label: string) {
   });
 }
 
-export type Me = { id: number; username: string; email: string };
+export type RealmRef = { id: number; name: string; role: RealmRole };
+
+export type Me = {
+  id: number;
+  username: string;
+  email: string;
+  /** The realm this tab's requests work in; null when the user has none (or lost access). */
+  realm: RealmRef | null;
+  realms: RealmRef[];
+  pending_invitations: number;
+};
+
+/** Keyed by the tab's realm, as the answer depends on the X-Realm header sent with it. */
+export function useMe() {
+  const realmId = useRealm((s) => s.realmId);
+  return useQuery({ queryKey: ["me", realmId], queryFn: () => api<Me>("/api/auth/me/") });
+}

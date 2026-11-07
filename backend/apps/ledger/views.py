@@ -3,12 +3,12 @@ from datetime import date
 from django.db.models import Count, F, OuterRef, Q, Subquery, Sum
 from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Coalesce, TruncMonth
-from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.core.filters import RangeFilter
+from apps.realms.access import RealmScopedViewSet
 
 from .models import ZERO, Beneficiary, PaymentMethod, RentalUnit, Tag, Transaction
 from .serializers import (
@@ -46,9 +46,9 @@ def _balance():
     )
 
 
-def active_accounts():
-    """Active payment methods with their all-time balance, which ignores any filters."""
-    return PaymentMethod.objects.filter(is_active=True).annotate(balance=_balance())
+def active_accounts(realm):
+    """A realm's active payment methods with their all-time balance, which ignores any filters."""
+    return PaymentMethod.objects.filter(realm=realm, is_active=True).annotate(balance=_balance())
 
 
 class ProtectedDestroyMixin:
@@ -65,7 +65,7 @@ class ProtectedDestroyMixin:
 # queryset below orders explicitly.
 
 
-class RentalUnitViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+class RentalUnitViewSet(ProtectedDestroyMixin, RealmScopedViewSet):
     """Units with income/expense totals inside the active date range."""
 
     serializer_class = RentalUnitSerializer
@@ -81,7 +81,7 @@ class RentalUnitViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
         return qs.filter(id=f.unit) if f.unit and self.action == "list" else qs
 
 
-class PaymentMethodViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
+class PaymentMethodViewSet(ProtectedDestroyMixin, RealmScopedViewSet):
     """Cards/accounts. `balance` is all-time; the in/out and transfer totals respect the filters."""
 
     serializer_class = PaymentMethodSerializer
@@ -99,7 +99,7 @@ class PaymentMethodViewSet(ProtectedDestroyMixin, viewsets.ModelViewSet):
         ).order_by("-is_active", "name")
 
 
-class BeneficiaryViewSet(viewsets.ModelViewSet):
+class BeneficiaryViewSet(RealmScopedViewSet):
     serializer_class = BeneficiarySerializer
 
     def get_queryset(self):
@@ -111,7 +111,7 @@ class BeneficiaryViewSet(viewsets.ModelViewSet):
         ).order_by("name")
 
 
-class TagViewSet(viewsets.ModelViewSet):
+class TagViewSet(RealmScopedViewSet):
     serializer_class = TagSerializer
 
     def get_queryset(self):
@@ -126,7 +126,7 @@ class TagViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-class TransactionViewSet(viewsets.ModelViewSet):
+class TransactionViewSet(RealmScopedViewSet):
     """All money movement. Filters: date range, unit, kind, payment_method, beneficiary, tag, q."""
 
     serializer_class = TransactionSerializer
@@ -164,10 +164,11 @@ def dashboard(request):
     today = date.today()
     month_start = today.replace(day=1)
 
-    accounts = active_accounts()
+    accounts = active_accounts(request.realm)
+    transactions = Transaction.objects.filter(realm=request.realm)
     unit_q = RangeFilter(unit=f.unit).q()
-    month = Transaction.objects.filter(unit_q, date__gte=month_start, date__lte=today).totals()
-    in_range = Transaction.objects.filter(f.q())
+    month = transactions.filter(unit_q, date__gte=month_start, date__lte=today).totals()
+    in_range = transactions.filter(f.q())
 
     monthly = (
         in_range.annotate(month=TruncMonth("date"))

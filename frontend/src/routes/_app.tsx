@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { RealmGate } from "@/features/realms/realm-gate";
 import { isLoggedIn } from "@/stores/auth";
 
 // Pathless layout: every signed-in page renders inside the sidebar, under the shared filters.
@@ -32,7 +33,9 @@ function AppLayout() {
           <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">{title}</h1>
           <ThemeToggle />
         </header>
-        <Outlet />
+        <RealmGate>
+          <Outlet />
+        </RealmGate>
       </SidebarInset>
     </SidebarProvider>
   );

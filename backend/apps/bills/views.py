@@ -1,13 +1,14 @@
 from django.db.models import Count, Prefetch
 from django.http import HttpResponse
 from django.utils.http import content_disposition_header
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from apps.core.filters import RangeFilter
+from apps.realms.access import RealmScopedViewSet
 
 from .models import Bill, BillAttachment, BillTemplate
 from .serializers import (
@@ -19,7 +20,7 @@ from .serializers import (
 )
 
 
-class BillTemplateViewSet(viewsets.ModelViewSet):
+class BillTemplateViewSet(RealmScopedViewSet):
     """The bill layouts to choose from. Bills keep their own copy, so these stay safe to change."""
 
     serializer_class = BillTemplateSerializer
@@ -36,7 +37,7 @@ class BillTemplateViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-class BillViewSet(viewsets.ModelViewSet):
+class BillViewSet(RealmScopedViewSet):
     """Logged bills. The list takes the shared date range and rental unit filters."""
 
     def get_serializer_class(self):

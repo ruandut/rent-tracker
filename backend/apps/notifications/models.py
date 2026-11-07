@@ -6,10 +6,13 @@ from datetime import datetime, timedelta
 from django.db import models
 from django.utils import timezone
 
+from apps.realms.models import Realm, TenantModel
+
 
 class DeliverySettings(models.Model):
-    """How to reach the outside world. A single row: there is one mail server and one bot."""
+    """How a realm reaches the outside world: one mail server and one bot per realm."""
 
+    realm = models.OneToOneField(Realm, on_delete=models.CASCADE, related_name="+")
     smtp_host = models.CharField(max_length=255, blank=True)
     smtp_port = models.PositiveIntegerField(default=587)
     smtp_username = models.CharField(max_length=255, blank=True)
@@ -22,11 +25,11 @@ class DeliverySettings(models.Model):
         verbose_name_plural = "delivery settings"
 
     def __str__(self):
-        return "Delivery settings"
+        return f"Delivery settings for {self.realm}"
 
     @classmethod
-    def load(cls) -> DeliverySettings:
-        return cls.objects.get_or_create(pk=1)[0]
+    def load(cls, realm: Realm) -> DeliverySettings:
+        return cls.objects.get_or_create(realm=realm)[0]
 
 
 def next_occurrence(start: datetime, frequency: str, after: datetime) -> datetime | None:
@@ -56,7 +59,7 @@ def next_occurrence(start: datetime, frequency: str, after: datetime) -> datetim
     return candidate
 
 
-class SummarySchedule(models.Model):
+class SummarySchedule(TenantModel):
     class Channel(models.TextChoices):
         EMAIL = "email", "Email"
         TELEGRAM = "telegram", "Telegram"

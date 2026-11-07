@@ -4,6 +4,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -28,6 +29,7 @@ INSTALLED_APPS = [
     # Platform apps: shared plumbing, no product features.
     "apps.core",
     "apps.accounts",
+    "apps.realms",
     "apps.jobs",
     # Domain apps. Imports run one way: utilities -> bills -> ledger.
     "apps.ledger",
@@ -97,7 +99,12 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    # InRealm resolves the request's realm (apps/realms/permissions.py). Endpoints that work across
+    # realms, or before sign-in, set their own permission classes.
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+        "apps.realms.permissions.InRealm",
+    ],
     "COERCE_DECIMAL_TO_STRING": False,
 }
 
@@ -109,5 +116,16 @@ SIMPLE_JWT = {
 
 # The Vite dev server proxies /api, so CORS only matters if you hit Django directly.
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:5174"])
+CORS_ALLOW_HEADERS = (*default_headers, "x-realm")
 # Needed for the Django admin when it isn't on localhost.
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+# --- Email -----------------------------------------------------------------
+# Realm invitations. Summaries use each realm's own mail server instead (notifications app).
+# Unset, invitations are only printed to the log; admins can still copy an invite's link.
+# e.g. EMAIL_URL=smtp+tls://user:password@smtp.example.com:587
+if env("EMAIL_URL", default=""):
+    vars().update(env.email_url("EMAIL_URL"))
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Rent Tracker <noreply@localhost>")

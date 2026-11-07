@@ -9,15 +9,16 @@ from apps.ledger.models import Beneficiary, PaymentMethod, RentalUnit, Tag, Tran
 
 
 @pytest.fixture
-def setup(db):
-    unit_a = RentalUnit.objects.create(name="A")
-    unit_b = RentalUnit.objects.create(name="B")
-    bank = PaymentMethod.objects.create(name="Bank", opening_balance=Decimal("1000"))
-    wife = Beneficiary.objects.create(name="Wife")
+def setup(realm):
+    unit_a = RentalUnit.objects.create(realm=realm, name="A")
+    unit_b = RentalUnit.objects.create(realm=realm, name="B")
+    bank = PaymentMethod.objects.create(realm=realm, name="Bank", opening_balance=Decimal("1000"))
+    wife = Beneficiary.objects.create(realm=realm, name="Wife")
     maintenance = Tag.objects.get(name="maintenance")
 
     def tx(kind, amount, day, unit=None, **kw):
         return Transaction.objects.create(
+            realm=realm,
             kind=kind,
             amount=Decimal(amount),
             date=day,
@@ -34,7 +35,7 @@ def setup(db):
     return {"unit_a": unit_a, "unit_b": unit_b, "bank": bank, "wife": wife, "tag": maintenance}
 
 
-def test_requires_auth(db):
+def test_requires_auth(realm):
     assert APIClient().get("/api/transactions/").status_code == 401
 
 
@@ -105,17 +106,17 @@ def test_dashboard_totals(api, setup):
     assert data["by_tag"][0]["name"] == "maintenance"
 
 
-def test_annotated_lists_keep_name_order(api, setup):
-    Tag.objects.create(name="aaa")
-    Tag.objects.create(name="zzz")
+def test_annotated_lists_keep_name_order(api, setup, realm):
+    Tag.objects.create(realm=realm, name="aaa")
+    Tag.objects.create(realm=realm, name="zzz")
     names = [t["name"] for t in api.get("/api/tags/").json()]
     assert names == sorted(names)
 
 
 @pytest.fixture
-def savings(setup):
+def savings(setup, realm):
     return PaymentMethod.objects.create(
-        name="Savings", kind="savings_account", opening_balance=Decimal("50")
+        realm=realm, name="Savings", kind="savings_account", opening_balance=Decimal("50")
     )
 
 
@@ -147,13 +148,14 @@ def test_transfer_moves_balances_without_touching_income_or_expense(api, setup, 
     assert data["recent"][0]["kind"] == "transfer"
 
 
-def test_balance_is_not_inflated_by_several_transactions_and_transfers(api, setup, savings):
+def test_balance_is_not_inflated_by_several_transactions_and_transfers(api, setup, savings, realm):
     """Summing transfers in over the same join as `transactions` would repeat rows."""
     for amount in ("100", "150"):
         body = transfer_body(setup, savings, amount=amount)
         assert api.post("/api/transactions/", body, format="json").status_code == 201
     for amount in ("10", "20"):
         Transaction.objects.create(
+            realm=realm,
             kind="income",
             amount=Decimal(amount),
             date=date(2026, 3, 2),
@@ -227,7 +229,7 @@ def test_account_that_received_a_transfer_cannot_be_deleted(api, setup, savings)
     assert api.delete(f"/api/payment-methods/{savings.id}/").status_code == 400
 
 
-def test_database_rejects_a_malformed_transfer(setup, savings):
+def test_database_rejects_a_malformed_transfer(setup, savings, realm):
     bank = setup["bank"]
     common = {"amount": Decimal("1"), "date": date(2026, 3, 1), "payment_method": bank}
     for bad in (
@@ -236,4 +238,4 @@ def test_database_rejects_a_malformed_transfer(setup, savings):
         {"kind": "transfer", "transfer_to": bank},
     ):
         with pytest.raises(IntegrityError), transaction.atomic():
-            Transaction.objects.create(**common, **bad)
+            Transaction.objects.create(realm=realm, **common, **bad)

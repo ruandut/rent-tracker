@@ -69,6 +69,7 @@ def _sync_readings(bill, groups):
             rental_unit=unit,
             kind=kind,
             defaults={
+                "realm": bill.realm,
                 "period": bill.period,
                 "usage": _usage(lines),
                 "meter_reading": _meter_reading(lines),
@@ -94,6 +95,7 @@ def _sync_charges(bill, groups):
             rental_unit=unit,
             category=category,
             defaults={
+                "realm": bill.realm,
                 "period": bill.period,
                 "amount": sum(line.total for line in lines),
                 "description": "; ".join(line.description for line in lines if line.description)[

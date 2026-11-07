@@ -12,3 +12,6 @@ backend/staticfiles/
 # Holds real secrets; written by scripts/generate_compose.sh.
 deploy/rent-tracker.compose.yml
 *.local
+
+# TanStack Router plugin scratch files
+frontend/.tanstack/

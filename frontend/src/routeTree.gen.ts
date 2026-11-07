@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBeneficiariesIndexRouteImport } from './routes/_app/beneficiaries/index'
 import { Route as AppBillsIndexRouteImport } from './routes/_app/bills/index'
@@ -18,6 +19,8 @@ import { Route as AppBillsBillIdRouteImport } from './routes/_app/bills/$billId'
 import { Route as AppBillsNewRouteImport } from './routes/_app/bills/new'
 import { Route as AppChargesIndexRouteImport } from './routes/_app/charges/index'
 import { Route as AppPaymentMethodsIndexRouteImport } from './routes/_app/payment-methods/index'
+import { Route as AppRealmsIndexRouteImport } from './routes/_app/realms/index'
+import { Route as AppRealmsRealmIdRouteImport } from './routes/_app/realms/$realmId'
 import { Route as AppSummariesIndexRouteImport } from './routes/_app/summaries/index'
 import { Route as AppTagsIndexRouteImport } from './routes/_app/tags/index'
 import { Route as AppTemplatesIndexRouteImport } from './routes/_app/templates/index'
@@ -34,6 +37,11 @@ const AppRoute = AppRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -69,6 +77,16 @@ const AppChargesIndexRoute = AppChargesIndexRouteImport.update({
 const AppPaymentMethodsIndexRoute = AppPaymentMethodsIndexRouteImport.update({
   id: '/payment-methods/',
   path: '/payment-methods/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRealmsIndexRoute = AppRealmsIndexRouteImport.update({
+  id: '/realms/',
+  path: '/realms/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRealmsRealmIdRoute = AppRealmsRealmIdRouteImport.update({
+  id: '/realms/$realmId',
+  path: '/realms/$realmId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSummariesIndexRoute = AppSummariesIndexRouteImport.update({
@@ -115,14 +133,17 @@ const AppUtilitiesIndexRoute = AppUtilitiesIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/bills/$billId': typeof AppBillsBillIdRoute
   '/bills/new': typeof AppBillsNewRoute
+  '/realms/$realmId': typeof AppRealmsRealmIdRoute
   '/templates/$templateId': typeof AppTemplatesTemplateIdRoute
   '/templates/new': typeof AppTemplatesNewRoute
   '/beneficiaries/': typeof AppBeneficiariesIndexRoute
   '/bills/': typeof AppBillsIndexRoute
   '/charges/': typeof AppChargesIndexRoute
   '/payment-methods/': typeof AppPaymentMethodsIndexRoute
+  '/realms/': typeof AppRealmsIndexRoute
   '/summaries/': typeof AppSummariesIndexRoute
   '/tags/': typeof AppTagsIndexRoute
   '/templates/': typeof AppTemplatesIndexRoute
@@ -132,15 +153,18 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/': typeof AppIndexRoute
   '/bills/$billId': typeof AppBillsBillIdRoute
   '/bills/new': typeof AppBillsNewRoute
+  '/realms/$realmId': typeof AppRealmsRealmIdRoute
   '/templates/$templateId': typeof AppTemplatesTemplateIdRoute
   '/templates/new': typeof AppTemplatesNewRoute
   '/beneficiaries': typeof AppBeneficiariesIndexRoute
   '/bills': typeof AppBillsIndexRoute
   '/charges': typeof AppChargesIndexRoute
   '/payment-methods': typeof AppPaymentMethodsIndexRoute
+  '/realms': typeof AppRealmsIndexRoute
   '/summaries': typeof AppSummariesIndexRoute
   '/tags': typeof AppTagsIndexRoute
   '/templates': typeof AppTemplatesIndexRoute
@@ -152,15 +176,18 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/_app/': typeof AppIndexRoute
   '/_app/bills/$billId': typeof AppBillsBillIdRoute
   '/_app/bills/new': typeof AppBillsNewRoute
+  '/_app/realms/$realmId': typeof AppRealmsRealmIdRoute
   '/_app/templates/$templateId': typeof AppTemplatesTemplateIdRoute
   '/_app/templates/new': typeof AppTemplatesNewRoute
   '/_app/beneficiaries/': typeof AppBeneficiariesIndexRoute
   '/_app/bills/': typeof AppBillsIndexRoute
   '/_app/charges/': typeof AppChargesIndexRoute
   '/_app/payment-methods/': typeof AppPaymentMethodsIndexRoute
+  '/_app/realms/': typeof AppRealmsIndexRoute
   '/_app/summaries/': typeof AppSummariesIndexRoute
   '/_app/tags/': typeof AppTagsIndexRoute
   '/_app/templates/': typeof AppTemplatesIndexRoute
@@ -173,14 +200,17 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/register'
     | '/bills/$billId'
     | '/bills/new'
+    | '/realms/$realmId'
     | '/templates/$templateId'
     | '/templates/new'
     | '/beneficiaries/'
     | '/bills/'
     | '/charges/'
     | '/payment-methods/'
+    | '/realms/'
     | '/summaries/'
     | '/tags/'
     | '/templates/'
@@ -190,15 +220,18 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/register'
     | '/'
     | '/bills/$billId'
     | '/bills/new'
+    | '/realms/$realmId'
     | '/templates/$templateId'
     | '/templates/new'
     | '/beneficiaries'
     | '/bills'
     | '/charges'
     | '/payment-methods'
+    | '/realms'
     | '/summaries'
     | '/tags'
     | '/templates'
@@ -209,15 +242,18 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
+    | '/register'
     | '/_app/'
     | '/_app/bills/$billId'
     | '/_app/bills/new'
+    | '/_app/realms/$realmId'
     | '/_app/templates/$templateId'
     | '/_app/templates/new'
     | '/_app/beneficiaries/'
     | '/_app/bills/'
     | '/_app/charges/'
     | '/_app/payment-methods/'
+    | '/_app/realms/'
     | '/_app/summaries/'
     | '/_app/tags/'
     | '/_app/templates/'
@@ -229,6 +265,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -245,6 +282,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -294,6 +338,20 @@ declare module '@tanstack/react-router' {
       path: '/payment-methods'
       fullPath: '/payment-methods/'
       preLoaderRoute: typeof AppPaymentMethodsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/realms/': {
+      id: '/_app/realms/'
+      path: '/realms'
+      fullPath: '/realms/'
+      preLoaderRoute: typeof AppRealmsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/realms/$realmId': {
+      id: '/_app/realms/$realmId'
+      path: '/realms/$realmId'
+      fullPath: '/realms/$realmId'
+      preLoaderRoute: typeof AppRealmsRealmIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/summaries/': {
@@ -359,12 +417,14 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppBillsBillIdRoute: typeof AppBillsBillIdRoute
   AppBillsNewRoute: typeof AppBillsNewRoute
+  AppRealmsRealmIdRoute: typeof AppRealmsRealmIdRoute
   AppTemplatesTemplateIdRoute: typeof AppTemplatesTemplateIdRoute
   AppTemplatesNewRoute: typeof AppTemplatesNewRoute
   AppBeneficiariesIndexRoute: typeof AppBeneficiariesIndexRoute
   AppBillsIndexRoute: typeof AppBillsIndexRoute
   AppChargesIndexRoute: typeof AppChargesIndexRoute
   AppPaymentMethodsIndexRoute: typeof AppPaymentMethodsIndexRoute
+  AppRealmsIndexRoute: typeof AppRealmsIndexRoute
   AppSummariesIndexRoute: typeof AppSummariesIndexRoute
   AppTagsIndexRoute: typeof AppTagsIndexRoute
   AppTemplatesIndexRoute: typeof AppTemplatesIndexRoute
@@ -377,12 +437,14 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppBillsBillIdRoute: AppBillsBillIdRoute,
   AppBillsNewRoute: AppBillsNewRoute,
+  AppRealmsRealmIdRoute: AppRealmsRealmIdRoute,
   AppTemplatesTemplateIdRoute: AppTemplatesTemplateIdRoute,
   AppTemplatesNewRoute: AppTemplatesNewRoute,
   AppBeneficiariesIndexRoute: AppBeneficiariesIndexRoute,
   AppBillsIndexRoute: AppBillsIndexRoute,
   AppChargesIndexRoute: AppChargesIndexRoute,
   AppPaymentMethodsIndexRoute: AppPaymentMethodsIndexRoute,
+  AppRealmsIndexRoute: AppRealmsIndexRoute,
   AppSummariesIndexRoute: AppSummariesIndexRoute,
   AppTagsIndexRoute: AppTagsIndexRoute,
   AppTemplatesIndexRoute: AppTemplatesIndexRoute,
@@ -396,6 +458,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

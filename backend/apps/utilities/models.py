@@ -11,13 +11,14 @@ from django.db import models
 
 from apps.bills.models import Bill
 from apps.ledger.models import RentalUnit, Transaction
+from apps.realms.models import TenantModel
 
 
 def _first_of_month(value):
     return value.replace(day=1) if value else value
 
 
-class UtilityReading(models.Model):
+class UtilityReading(TenantModel):
     class Kind(models.TextChoices):
         WATER = "water", "Water"
         ELECTRICITY = "electricity", "Electricity"
@@ -56,7 +57,7 @@ class UtilityReading(models.Model):
         super().save(*args, **kwargs)
 
 
-class MunicipalCharge(models.Model):
+class MunicipalCharge(TenantModel):
     class Category(models.TextChoices):
         RATES_TAXES = "rates_taxes", "Rates & taxes"
         REFUSE = "refuse", "Refuse"

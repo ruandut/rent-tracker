@@ -21,7 +21,7 @@ def at(*args):
     return datetime(*args, tzinfo=SAST)
 
 
-def schedule(**overrides):
+def schedule(realm, **overrides):
     values = {
         "name": "Monthly",
         "channel": "email",
@@ -30,7 +30,7 @@ def schedule(**overrides):
         "start_at": timezone.now() - timedelta(days=1),
         "next_run_at": timezone.now() - timedelta(minutes=1),
     }
-    return SummarySchedule.objects.create(**{**values, **overrides})
+    return SummarySchedule.objects.create(realm=realm, **{**values, **overrides})
 
 
 def test_next_occurrence_repeats_from_the_start():
@@ -65,41 +65,48 @@ def test_money_format():
     assert money(Decimal("-20")) == "-R 20.00"
 
 
-def test_summary_covers_balance_month_and_year(db):
-    bank = PaymentMethod.objects.create(name="Bank", opening_balance=Decimal("1000"))
+def test_summary_covers_balance_month_and_year(realm):
+    bank = PaymentMethod.objects.create(realm=realm, name="Bank", opening_balance=Decimal("1000"))
     today = timezone.localdate()
     Transaction.objects.create(
-        kind="income", amount=Decimal("500"), date=today, description="Rent", payment_method=bank
+        realm=realm,
+        kind="income",
+        amount=Decimal("500"),
+        date=today,
+        description="Rent",
+        payment_method=bank,
     )
-    subject, body = build_summary()
+    subject, body = build_summary(realm)
     assert "Rent Tracker summary" in subject
     assert "Account balance: R 1 500.00" in body
     assert "Bank: R 1 500.00" in body
     assert body.count("In:  R 500.00") == 2
 
 
-def test_email_sends_through_configured_server(db, settings):
-    DeliverySettings.objects.create(smtp_host="mail.test", from_email="rent@example.com")
+def test_email_sends_through_configured_server(realm, settings):
+    DeliverySettings.objects.create(
+        realm=realm, smtp_host="mail.test", from_email="rent@example.com"
+    )
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
     with patch("apps.notifications.delivery.get_connection") as connection:
         connection.return_value = mail.get_connection(
             "django.core.mail.backends.locmem.EmailBackend"
         )
-        delivery.deliver(schedule(), "Subject", "Body")
+        delivery.deliver(schedule(realm), "Subject", "Body")
     assert connection.call_args.kwargs["host"] == "mail.test"
     assert mail.outbox[0].to == ["me@example.com"]
     assert mail.outbox[0].from_email == "rent@example.com"
 
 
-def test_unconfigured_channels_explain_themselves(db):
+def test_unconfigured_channels_explain_themselves(realm):
     with pytest.raises(DeliveryError, match="Email isn't set up"):
-        delivery.deliver(schedule(), "S", "B")
+        delivery.deliver(schedule(realm), "S", "B")
     with pytest.raises(DeliveryError, match="Telegram isn't set up"):
-        delivery.deliver(schedule(channel="telegram", recipient="123"), "S", "B")
+        delivery.deliver(schedule(realm, channel="telegram", recipient="123"), "S", "B")
 
 
-def test_due_schedule_sends_once_and_moves_on(db):
-    item = schedule()
+def test_due_schedule_sends_once_and_moves_on(realm):
+    item = schedule(realm)
     with patch.object(services, "deliver") as send:
         assert services.send_due_summaries() == {"sent": 1, "failed": 0}
         assert services.send_due_summaries() == {"sent": 0, "failed": 0}
@@ -108,8 +115,8 @@ def test_due_schedule_sends_once_and_moves_on(db):
     assert item.last_sent_at and item.next_run_at > timezone.now()
 
 
-def test_missed_runs_send_one_summary_not_a_backlog(db):
-    item = schedule(frequency="daily", start_at=timezone.now() - timedelta(days=30))
+def test_missed_runs_send_one_summary_not_a_backlog(realm):
+    item = schedule(realm, frequency="daily", start_at=timezone.now() - timedelta(days=30))
     with patch.object(services, "deliver") as send:
         services.send_due_summaries()
     assert send.call_count == 1
@@ -117,16 +124,16 @@ def test_missed_runs_send_one_summary_not_a_backlog(db):
     assert item.next_run_at - timezone.now() <= timedelta(days=1)
 
 
-def test_one_off_disables_itself_after_sending(db):
-    item = schedule(frequency="once")
+def test_one_off_disables_itself_after_sending(realm):
+    item = schedule(realm, frequency="once")
     with patch.object(services, "deliver"):
         services.send_due_summaries()
     item.refresh_from_db()
     assert not item.is_enabled and item.next_run_at is None
 
 
-def test_failure_is_recorded_and_not_retried_every_minute(db):
-    item = schedule()
+def test_failure_is_recorded_and_not_retried_every_minute(realm):
+    item = schedule(realm)
     with patch.object(services, "deliver", side_effect=DeliveryError("chat not found")):
         assert services.send_due_summaries() == {"sent": 0, "failed": 1}
     item.refresh_from_db()
@@ -134,9 +141,9 @@ def test_failure_is_recorded_and_not_retried_every_minute(db):
     assert item.next_run_at > timezone.now()
 
 
-def test_disabled_and_future_schedules_are_left_alone(db):
-    schedule(is_enabled=False)
-    schedule(next_run_at=timezone.now() + timedelta(hours=1))
+def test_disabled_and_future_schedules_are_left_alone(realm):
+    schedule(realm, is_enabled=False)
+    schedule(realm, next_run_at=timezone.now() + timedelta(hours=1))
     with patch.object(services, "deliver") as send:
         services.send_due_summaries()
     send.assert_not_called()
@@ -193,7 +200,7 @@ def test_telegram_accepts_group_ids(api):
     assert api.post("/api/notifications/schedules/", body, format="json").status_code == 201
 
 
-def test_settings_never_return_credentials(api):
+def test_settings_never_return_credentials(api, realm):
     res = api.patch(
         "/api/notifications/settings/",
         {"smtp_host": "mail.test", "smtp_password": "hunter2", "telegram_bot_token": "1:ABC"},
@@ -203,21 +210,21 @@ def test_settings_never_return_credentials(api):
     data = api.get("/api/notifications/settings/").json()
     assert data["has_smtp_password"] and data["has_telegram_bot_token"]
     assert "hunter2" not in str(data) and "1:ABC" not in str(data)
-    stored = DeliverySettings.load()
+    stored = DeliverySettings.load(realm)
     assert "hunter2" not in stored.smtp_password_encrypted
     assert decrypt(stored.telegram_bot_token_encrypted) == "1:ABC"
 
 
-def test_blank_credentials_keep_the_saved_ones(api):
+def test_blank_credentials_keep_the_saved_ones(api, realm):
     api.patch("/api/notifications/settings/", {"smtp_password": "hunter2"}, format="json")
     api.patch(
         "/api/notifications/settings/", {"smtp_password": "", "smtp_host": "x"}, format="json"
     )
-    assert decrypt(DeliverySettings.load().smtp_password_encrypted) == "hunter2"
+    assert decrypt(DeliverySettings.load(realm).smtp_password_encrypted) == "hunter2"
 
 
-def test_test_button_reports_failure_without_touching_the_schedule(api):
-    item = schedule(next_run_at=timezone.now() + timedelta(days=5))
+def test_test_button_reports_failure_without_touching_the_schedule(api, realm):
+    item = schedule(realm, next_run_at=timezone.now() + timedelta(days=5))
     before = item.next_run_at
     res = api.post(f"/api/notifications/schedules/{item.id}/test/")
     assert res.json()["sent"] is False

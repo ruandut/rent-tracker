@@ -36,6 +36,13 @@ the rules that aren't obvious from the code.
 
 ## Backend
 
+- Everything is multi-tenant. New domain models subclass `TenantModel` (`apps/realms/models.py`);
+  viewsets extend `RealmScopedViewSet` and serializers `RealmScopedSerializer`
+  (`apps/realms/access.py`). Names unique per realm go in `realm_unique`, never `unique=True`.
+  Function views filter by `request.realm` themselves. Endpoints that work across realms opt out
+  of the default `InRealm` permission, and Hatchet tasks span every realm.
+- Every endpoint gets a realm-isolation test in `apps/realms/test_isolation.py`: another realm's
+  rows stay out of lists, detail routes 404, and foreign keys can't point into it.
 - List endpoints filter through `apps/core/filters.py`, the shared date range and rental unit.
 - Django drops `Meta.ordering` from aggregated queries, so annotated querysets need `order_by`.
 - Use non-capturing groups in `re_path`: captured groups become view arguments.
@@ -45,8 +52,9 @@ the rules that aren't obvious from the code.
 
 ## Frontend
 
-- TanStack Query owns server data, Zustand owns tokens and the shared filters, and TanStack Router
-  owns the URL. Routes use one folder per screen under `src/routes/_app/`.
+- TanStack Query owns server data, Zustand owns tokens, the tab's realm and the shared filters, and
+  TanStack Router owns the URL. Change realm only through `enterRealm()`, which drops the old
+  realm's cached data. Routes use one folder per screen under `src/routes/_app/`.
 - Build for phone width too, using `useIsMobile()` when the layout has to change. Pages must not
   scroll sideways.
 - Table rows stay one consistent height. Give the main text column `flexCell` from

@@ -1,9 +1,12 @@
 from rest_framework import serializers
 
+from apps.realms.access import RealmScopedSerializer
+
 from .models import Beneficiary, PaymentMethod, RentalUnit, Tag, Transaction
 
 
-class RentalUnitSerializer(serializers.ModelSerializer):
+class RentalUnitSerializer(RealmScopedSerializer):
+    realm_unique = {("name",): "There's already a unit with this name."}
     income = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     expense = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
@@ -12,7 +15,8 @@ class RentalUnitSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "address", "notes", "is_active", "income", "expense"]
 
 
-class PaymentMethodSerializer(serializers.ModelSerializer):
+class PaymentMethodSerializer(RealmScopedSerializer):
+    realm_unique = {("name",): "There's already a payment method with this name."}
     balance = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     income = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     expense = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
@@ -43,7 +47,8 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
         return value
 
 
-class BeneficiarySerializer(serializers.ModelSerializer):
+class BeneficiarySerializer(RealmScopedSerializer):
+    realm_unique = {("name",): "There's already a beneficiary with this name."}
     paid = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     received = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     count = serializers.IntegerField(read_only=True)
@@ -53,7 +58,8 @@ class BeneficiarySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "relationship", "notes", "paid", "received", "count"]
 
 
-class TagSerializer(serializers.ModelSerializer):
+class TagSerializer(RealmScopedSerializer):
+    realm_unique = {("name",): "There's already a tag with this name."}
     total = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     count = serializers.IntegerField(read_only=True)
 
@@ -63,7 +69,7 @@ class TagSerializer(serializers.ModelSerializer):
         read_only_fields = ["is_system"]
 
 
-class TransactionSerializer(serializers.ModelSerializer):
+class TransactionSerializer(RealmScopedSerializer):
     payment_method_name = serializers.CharField(source="payment_method.name", read_only=True)
     transfer_to_name = serializers.CharField(
         source="transfer_to.name", read_only=True, default=None
