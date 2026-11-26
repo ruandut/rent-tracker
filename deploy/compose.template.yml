@@ -13,16 +13,16 @@ x-app-env: &app-env
   DEBUG: "false"
   DJANGO_SECRET_KEY: "__DJANGO_SECRET_KEY__"
   DATABASE_URL: postgres://rent:__POSTGRES_PASSWORD__@postgres:5432/rent
-  ALLOWED_HOSTS: __HOST__,localhost
-  CSRF_TRUSTED_ORIGINS: http://__HOST__:__PORT__
+  # The LAN address over http and, when there is one, the public hostname over https.
+  # Set by scripts/generate_compose.sh: rerun it rather than editing these.
+  ALLOWED_HOSTS: __ALLOWED_HOSTS__
+  CSRF_TRUSTED_ORIGINS: __CSRF_TRUSTED_ORIGINS__
   # Signs the login captcha's challenges.
   ALTCHA_HMAC_KEY: "__ALTCHA_HMAC_KEY__"
-  # Facing the internet through a reverse proxy or tunnel: set NUM_PROXIES to the number of
-  # proxies in front (usually 1) so rate limits see each visitor's own IP, and HTTPS to "true"
-  # once the site is served over https. Add the public hostname to ALLOWED_HOSTS and its
-  # https:// origin to CSRF_TRUSTED_ORIGINS (comma-separated).
-  NUM_PROXIES: "0"
-  HTTPS: "false"
+  # With a public hostname: the proxies in front (1 for Cloudflare), so rate limits see each
+  # visitor's own IP, and HTTPS on for secure cookies and HSTS. Both 0/false for LAN only.
+  NUM_PROXIES: "__NUM_PROXIES__"
+  HTTPS: "__HTTPS__"
   # Database backups (Django admin, Database backups). The worker writes dumps here and web
   # deletes them; both mount the backups volume. Copy it off the server too, or set
   # AWS_S3_BACKUP_BUCKET and credentials to send schedules to S3 or an S3-compatible service.
@@ -126,6 +126,11 @@ services:
         exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 2 --access-logfile -
     ports:
       - "__PORT__:8000"
+    # On the tunnel's network too, so it can reach http://rent-tracker-web-1:8000. Lines marked
+    # tunnel-only are dropped by scripts/generate_compose.sh when there's no tunnel network.
+    networks:  # tunnel-only
+      - default  # tunnel-only
+      - tunnel  # tunnel-only
     volumes:
       - backups:/backups
     depends_on:
@@ -172,3 +177,9 @@ volumes:
     name: rent-tracker-hatchet-token
   backups:
     name: rent-tracker-backups
+
+# A tunnel such as cloudflared, made outside this project, and the Docker network it is on.
+networks:  # tunnel-only
+  tunnel:  # tunnel-only
+    name: __TUNNEL_NETWORK__  # tunnel-only
+    external: true  # tunnel-only

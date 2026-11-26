@@ -118,13 +118,21 @@ into the Docker app. It keeps your existing secrets and only generates ones that
 ### Network and backups
 
 The app speaks plain HTTP. To reach it from the internet, put a reverse proxy or tunnel that
-serves HTTPS in front of it rather than forwarding port 8010 on your router. Then, in the Compose
-file's shared environment:
+serves HTTPS in front of it, such as a Cloudflare Tunnel, rather than forwarding port 8010 on
+your router. `make compose` asks for:
 
-- add the public hostname to `ALLOWED_HOSTS` and its `https://` origin to `CSRF_TRUSTED_ORIGINS`;
-- set `NUM_PROXIES` to the number of proxies in front of the app (usually `1`), so rate limits
-  see each visitor's address instead of the proxy's;
-- set `HTTPS: "true"`, which makes cookies https-only and turns on HSTS.
+- **the public https hostname**, e.g. `app.example.com`. The app then answers both there and on
+  the LAN address and port over http;
+- **how many proxies are in front** (`1` for Cloudflare), so rate limits see each visitor's
+  address instead of the proxy's. With a public hostname, `HTTPS` is on too: cookies become
+  https-only and browsers are told to stick to https;
+- **the Docker network the tunnel container is on**, when the tunnel runs on the same server
+  (e.g. `cloudflared`'s). `web` joins it, so the tunnel can reach `http://rent-tracker-web-1:8000`.
+  Find it in the Docker app under the tunnel container's network settings.
+
+Rerun `make compose` to change these rather than editing the generated file: it keeps them, and
+anything edited by hand is lost the next time the file is regenerated. With `HTTPS` on, the
+Django admin only works over https, because its cookies are https-only.
 
 The app's own protection, which applies either way:
 
