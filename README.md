@@ -129,16 +129,19 @@ file's shared environment:
 The app's own protection, which applies either way:
 
 - **Captcha:** login, joining from an invitation and the Django admin's login need an
-  [ALTCHA](https://altcha.org) proof of work, served by Django itself (`apps/accounts/captcha.py`).
+  [ALTCHA](https://altcha.org) proof of work, served by Django itself.
   A challenge can't be redeemed until 3 seconds after it was issued and works once. The key that
   signs challenges is `ALTCHA_HMAC_KEY`; `CAPTCHA_ENABLED: "false"` switches checking off.
 - **Rate limits:** every API request is limited per account once signed in, and per IP before
-  that; sign-in routes have a strict per-IP limit (`apps/core/throttling.py`). The counters live in
+  that; sign-in routes have a strict per-IP limit. The counters live in
   a Postgres table, as there's no Redis. Tune them with `THROTTLE_ANON`, `THROTTLE_USER`,
   `THROTTLE_AUTH` and `THROTTLE_CAPTCHA` (e.g. `10/min`).
 - **Headers:** a Content Security Policy that only runs this site's own scripts,
   `X-Frame-Options: DENY`, `nosniff`, a same-origin referrer policy and a Permissions-Policy that
-  turns off camera, microphone, location and the like (`config/settings.py`).
+  turns off camera, microphone, location and the like.
+
+All three come from [django-foundation](https://github.com/ruandut/django-foundation), the shared package for the
+captcha, rate limits, headers and the Hatchet worker; `config/settings.py` switches them on.
 
 **Backups:** the database holds real financial records and nothing backs it up yet.
 

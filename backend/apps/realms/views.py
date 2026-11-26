@@ -4,15 +4,14 @@ request's current realm, so they use IsAuthenticated instead of the default InRe
 from django.contrib.auth import get_user_model
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
+from foundation.security import captcha
+from foundation.security.throttling import AuthThrottle, with_defaults
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-
-from apps.accounts import captcha
-from apps.core.throttling import AuthThrottle, with_defaults
 
 from . import services
 from .models import Realm, RealmInvitation, RealmMembership

@@ -30,7 +30,7 @@ function describe(body: unknown): string | null {
       if (nested) return nested;
       continue;
     }
-    // The captcha's messages (backend/apps/accounts/captcha.py) read fine on their own.
+    // The captcha's messages (django-foundation's foundation/security/captcha.py) read fine on their own.
     return field === "detail" || field === "non_field_errors" || field === "altcha"
       ? text
       : `${field.replaceAll("_", " ")}: ${text}`;

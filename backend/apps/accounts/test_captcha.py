@@ -12,10 +12,10 @@ import altcha
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.cache import cache, caches
+from foundation.security import captcha
 from rest_framework.test import APIClient
 from rest_framework.throttling import SimpleRateThrottle
 
-from apps.accounts import captcha
 from apps.realms.models import RealmInvitation
 
 LOGIN = "/api/auth/token/"

@@ -36,6 +36,9 @@ the rules that aren't obvious from the code.
 
 ## Backend
 
+- The captcha, rate limits, security headers, Postgres cache and Hatchet worker come from the
+  shared `django-foundation` package (`../django-foundation`), switched on in `config/settings.py`.
+  Change that code in the package, so every app built on it gets the fix.
 - Everything is multi-tenant. New domain models subclass `TenantModel` (`apps/realms/models.py`);
   viewsets extend `RealmScopedViewSet` and serializers `RealmScopedSerializer`
   (`apps/realms/access.py`). Names unique per realm go in `realm_unique`, never `unique=True`.

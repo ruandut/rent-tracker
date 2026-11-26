@@ -7,9 +7,12 @@ requires-python = ">=3.14"
 dependencies = [
     "cryptography>=50.0.2",
     "django>=6.1,<6.2",
-    "django-altcha>=1.0.0",
     "django-cors-headers>=4.9.0",
     "django-environ>=0.14.0",
+    # Shared captcha, rate limits, headers and Hatchet worker. A release tarball: no git needed
+    # in the image. To work on the package alongside: uv add --editable ../../django-foundation,
+    # then put this line back before committing.
+    "django-foundation @ https://github.com/ruandut/django-foundation/archive/refs/tags/v0.1.0.tar.gz",
     "djangorestframework>=3.18.3",
     "djangorestframework-simplejwt>=5.5.1",
     "gunicorn>=26.2.0",

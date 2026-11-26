@@ -6,8 +6,8 @@ import { useCallback, useEffect, useImperativeHandle, useRef } from "react";
 
 /**
  * The server won't accept a challenge sooner than CAPTCHA_MIN_SECONDS (3 s) after issuing it
- * (backend/config/settings.py). The widget holds the payload back a little longer than that,
- * which covers the challenge's round trip, so people never see "too quick".
+ * (django-foundation's foundation/settings.py). The widget holds the payload back a little
+ * longer than that, which covers the challenge's round trip, so people never see "too quick".
  */
 const CAPTCHA_MIN_MS = 3500;
 
@@ -38,7 +38,7 @@ export type AltchaHandle = {
 };
 
 /**
- * ALTCHA proof-of-work captcha (backend/apps/accounts/captcha.py). Reports the solved payload,
+ * ALTCHA proof-of-work captcha (django-foundation's foundation/security/captcha.py). Reports the solved payload,
  * which the form sends as `altcha`, or null while there's none to send.
  */
 export function Altcha({

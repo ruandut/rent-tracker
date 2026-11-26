@@ -3,9 +3,8 @@
 from datetime import timedelta
 
 from django.db import close_old_connections
+from foundation.jobs.hatchet import get_hatchet
 from hatchet_sdk import Context, EmptyModel
-
-from apps.jobs.hatchet import get_hatchet
 
 hatchet = get_hatchet()
 

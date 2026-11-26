@@ -5,9 +5,8 @@ create Transactions with source=EMAIL. For now it only proves the worker wiring 
 trigger `ledger-ping` from the Hatchet dashboard and it reports the transaction count.
 """
 
+from foundation.jobs.hatchet import get_hatchet
 from hatchet_sdk import Context, EmptyModel
-
-from apps.jobs.hatchet import get_hatchet
 
 hatchet = get_hatchet()
 

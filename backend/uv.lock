@@ -340,6 +340,34 @@ wheels = [
 ]
 
 [[package]]
+name = "django-foundation"
+version = "0.1.0"
+source = { url = "https://github.com/ruandut/django-foundation/archive/refs/tags/v0.1.0.tar.gz" }
+dependencies = [
+    { name = "django" },
+    { name = "django-altcha" },
+    { name = "django-environ" },
+    { name = "djangorestframework" },
+    { name = "djangorestframework-simplejwt" },
+    { name = "hatchet-sdk" },
+    { name = "psycopg", extra = ["binary"] },
+]
+sdist = { hash = "sha256:b125a9e2a6b92814832a17eddd1d45bf4dd222256647c9556cae396c42ba5b66" }
+
+[package.metadata]
+requires-dist = [
+    { name = "boto3", marker = "extra == 's3'", specifier = ">=1.44.9" },
+    { name = "django", specifier = ">=6.1,<6.2" },
+    { name = "django-altcha", specifier = ">=1.0.0" },
+    { name = "django-environ", specifier = ">=0.14.0" },
+    { name = "djangorestframework", specifier = ">=3.18.3" },
+    { name = "djangorestframework-simplejwt", specifier = ">=5.5.1" },
+    { name = "hatchet-sdk", specifier = ">=1.43.0" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
+]
+provides-extras = ["s3"]
+
+[[package]]
 name = "djangorestframework"
 version = "3.18.3"
 source = { registry = "https://pypi.org/simple" }
@@ -981,9 +1009,9 @@ source = { virtual = "." }
 dependencies = [
     { name = "cryptography" },
     { name = "django" },
-    { name = "django-altcha" },
     { name = "django-cors-headers" },
     { name = "django-environ" },
+    { name = "django-foundation" },
     { name = "djangorestframework" },
     { name = "djangorestframework-simplejwt" },
     { name = "gunicorn" },
@@ -1003,9 +1031,9 @@ dev = [
 requires-dist = [
     { name = "cryptography", specifier = ">=50.0.2" },
     { name = "django", specifier = ">=6.1,<6.2" },
-    { name = "django-altcha", specifier = ">=1.0.0" },
     { name = "django-cors-headers", specifier = ">=4.9.0" },
     { name = "django-environ", specifier = ">=0.14.0" },
+    { name = "django-foundation", url = "https://github.com/ruandut/django-foundation/archive/refs/tags/v0.1.0.tar.gz" },
     { name = "djangorestframework", specifier = ">=3.18.3" },
     { name = "djangorestframework-simplejwt", specifier = ">=5.5.1" },
     { name = "gunicorn", specifier = ">=26.2.0" },
