@@ -2,7 +2,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
 
+from apps.accounts import captcha
+from apps.core.throttling import AuthThrottle, with_defaults
 from apps.realms.models import RealmInvitation, RealmMembership
 from apps.realms.permissions import resolve_membership
 
@@ -39,3 +42,14 @@ def me(request):
 
 def _realm(membership: RealmMembership) -> dict:
     return {"id": membership.realm_id, "name": membership.realm.name, "role": membership.role}
+
+
+class LoginView(TokenObtainPairView):
+    """Username + password for a JWT pair, behind the captcha and the strict per-IP auth limit."""
+
+    throttle_classes = with_defaults(AuthThrottle)
+
+    def post(self, request, *args, **kwargs):
+        # Before the password check, so every guess costs a solved captcha.
+        captcha.verify(request)
+        return super().post(request, *args, **kwargs)

@@ -103,6 +103,9 @@ Merge to `main` and wait for the **Publish image** action to finish. Then update
 the Docker app, or run `docker compose pull` and `docker compose up -d`. Data lives in the
 `postgres_data` Docker volume and survives updates.
 
+When the template changes, run `make compose` again with the same answers and paste the new file
+into the Docker app. It keeps your existing secrets and only generates ones that are missing.
+
 ### Troubleshooting
 
 - **`password authentication failed for user "rent"`:** the Compose file's secrets don't match the
@@ -114,8 +117,28 @@ the Docker app, or run `docker compose pull` and `docker compose up -d`. Data li
 
 ### Network and backups
 
-The app uses plain HTTP, so keep it on your home network and don't forward port 8010 on your
-router.
+The app speaks plain HTTP. To reach it from the internet, put a reverse proxy or tunnel that
+serves HTTPS in front of it rather than forwarding port 8010 on your router. Then, in the Compose
+file's shared environment:
+
+- add the public hostname to `ALLOWED_HOSTS` and its `https://` origin to `CSRF_TRUSTED_ORIGINS`;
+- set `NUM_PROXIES` to the number of proxies in front of the app (usually `1`), so rate limits
+  see each visitor's address instead of the proxy's;
+- set `HTTPS: "true"`, which makes cookies https-only and turns on HSTS.
+
+The app's own protection, which applies either way:
+
+- **Captcha:** login, joining from an invitation and the Django admin's login need an
+  [ALTCHA](https://altcha.org) proof of work, served by Django itself (`apps/accounts/captcha.py`).
+  A challenge can't be redeemed until 3 seconds after it was issued and works once. The key that
+  signs challenges is `ALTCHA_HMAC_KEY`; `CAPTCHA_ENABLED: "false"` switches checking off.
+- **Rate limits:** every API request is limited per account once signed in, and per IP before
+  that; sign-in routes have a strict per-IP limit (`apps/core/throttling.py`). The counters live in
+  a Postgres table, as there's no Redis. Tune them with `THROTTLE_ANON`, `THROTTLE_USER`,
+  `THROTTLE_AUTH` and `THROTTLE_CAPTCHA` (e.g. `10/min`).
+- **Headers:** a Content Security Policy that only runs this site's own scripts,
+  `X-Frame-Options: DENY`, `nosniff`, a same-origin referrer policy and a Permissions-Policy that
+  turns off camera, microphone, location and the like (`config/settings.py`).
 
 **Backups:** the database holds real financial records and nothing backs it up yet.
 

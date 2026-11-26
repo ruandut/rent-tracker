@@ -5,6 +5,12 @@ from rest_framework.test import APIClient
 from apps.realms.services import create_realm
 
 
+@pytest.fixture(autouse=True)
+def _no_captcha(settings):
+    """Tests sign in without solving a captcha; apps/accounts/test_captcha.py turns it back on."""
+    settings.ALTCHA_VERIFICATION_ENABLED = False
+
+
 @pytest.fixture
 def user(db):
     return get_user_model().objects.create_user("tester", email="tester@example.com", password="pw")

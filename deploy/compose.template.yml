@@ -15,6 +15,14 @@ x-app-env: &app-env
   DATABASE_URL: postgres://rent:__POSTGRES_PASSWORD__@postgres:5432/rent
   ALLOWED_HOSTS: __HOST__,localhost
   CSRF_TRUSTED_ORIGINS: http://__HOST__:__PORT__
+  # Signs the login captcha's challenges.
+  ALTCHA_HMAC_KEY: "__ALTCHA_HMAC_KEY__"
+  # Facing the internet through a reverse proxy or tunnel: set NUM_PROXIES to the number of
+  # proxies in front (usually 1) so rate limits see each visitor's own IP, and HTTPS to "true"
+  # once the site is served over https. Add the public hostname to ALLOWED_HOSTS and its
+  # https:// origin to CSRF_TRUSTED_ORIGINS (comma-separated).
+  NUM_PROXIES: "0"
+  HTTPS: "false"
 
 x-app: &app
   # Published from main by .github/workflows/publish-image.yml.

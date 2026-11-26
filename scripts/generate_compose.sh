@@ -28,8 +28,17 @@ done
 existing() { [[ -f "$OUT" ]] && sed -nE "s/^ *$1: \"([^\"]+)\"$/\1/p" "$OUT" | head -1 || true; }
 POSTGRES_PASSWORD="$(existing POSTGRES_PASSWORD)"
 DJANGO_SECRET_KEY="$(existing DJANGO_SECRET_KEY)"
+ALTCHA_HMAC_KEY="$(existing ALTCHA_HMAC_KEY)"
 EXISTING_PASSWORD="$(existing ADMIN_PASSWORD)"
+# The earlier answers become the defaults, so a rerun only needs Enter (or no terminal at all).
+grab() { [[ -f "$OUT" ]] && sed -nE "$1" "$OUT" | head -1 || true; }
+OLD_HOST="$(grab 's/^ *CSRF_TRUSTED_ORIGINS: https?:\/\/([^:/]+).*/\1/p')"
+OLD_PORT="$(grab 's/^ *- "([0-9]+):8000"$/\1/p')"
+OLD_USERNAME="$(existing ADMIN_USERNAME)"
+OLD_REPO="$(grab 's/^ *image: ghcr\.io\/([^:]+):latest$/\1/p')"
+UPDATING=false
 if [[ -n "$POSTGRES_PASSWORD" ]]; then
+  UPDATING=true
   echo "Updating your existing Compose file; its secrets stay the same."
 fi
 
@@ -44,14 +53,16 @@ DEFAULT_REPO="$(git -C "$ROOT" remote get-url origin 2>/dev/null \
   | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##' || true)"
 [[ "$DEFAULT_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || DEFAULT_REPO=ruandut/rent-tracker
 
-[[ -n "$HOST" ]] || HOST="$(ask "Server IP address or hostname" "")"
-[[ -n "$PORT" ]] || PORT="$(ask "Port to run on" 8010)"
-[[ -n "$USERNAME" ]] || USERNAME="$(ask "First login username" admin)"
+[[ -n "$HOST" ]] || HOST="$(ask "Server IP address or hostname" "$OLD_HOST")"
+[[ -n "$PORT" ]] || PORT="$(ask "Port to run on" "${OLD_PORT:-8010}")"
+[[ -n "$USERNAME" ]] || USERNAME="$(ask "First login username" "${OLD_USERNAME:-admin}")"
 if [[ "$PASSWORD_SET" != true ]]; then
-  read -r -s -p "First login password (Enter to generate one): " PASSWORD || true
+  prompt="First login password (Enter to generate one): "
+  [[ -n "$EXISTING_PASSWORD" ]] && prompt="First login password (Enter to keep the current one): "
+  read -r -s -p "$prompt" PASSWORD || true
   echo
 fi
-[[ -n "$REPO" ]] || REPO="$(ask "GitHub repo whose image to run" "$DEFAULT_REPO")"
+[[ -n "$REPO" ]] || REPO="$(ask "GitHub repo whose image to run" "${OLD_REPO:-$DEFAULT_REPO}")"
 
 fail() { echo "$1" >&2; exit 1; }
 
@@ -68,6 +79,11 @@ fail() { echo "$1" >&2; exit 1; }
 PASSWORD="${PASSWORD:-${EXISTING_PASSWORD:-$(openssl rand -hex 12)}}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -hex 24)}"
 DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-$(openssl rand -hex 32)}"
+# Files from before the captcha have none yet; adding one doesn't touch the other secrets.
+if [[ -z "$ALTCHA_HMAC_KEY" ]]; then
+  ALTCHA_HMAC_KEY="$(openssl rand -hex 32)"
+  [[ "$UPDATING" == true ]] && echo "Added a new secret: ALTCHA_HMAC_KEY."
+fi
 
 umask 077
 sed \
@@ -78,6 +94,7 @@ sed \
   -e "s|__ADMIN_PASSWORD__|$PASSWORD|g" \
   -e "s|__DJANGO_SECRET_KEY__|$DJANGO_SECRET_KEY|g" \
   -e "s|__POSTGRES_PASSWORD__|$POSTGRES_PASSWORD|g" \
+  -e "s|__ALTCHA_HMAC_KEY__|$ALTCHA_HMAC_KEY|g" \
   "$ROOT/deploy/compose.template.yml" > "$OUT.tmp"
 mv "$OUT.tmp" "$OUT"
 

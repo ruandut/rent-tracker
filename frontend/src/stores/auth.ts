@@ -26,14 +26,25 @@ export const useAuth = create<AuthState>()(
 
 export const isLoggedIn = () => useAuth.getState().refresh !== null;
 
-export async function login(username: string, password: string): Promise<void> {
+/** `altcha` is the solved captcha payload (components/altcha.tsx). */
+export async function login(username: string, password: string, altcha: string): Promise<void> {
   const res = await fetch("/api/auth/token/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, altcha }),
   });
-  if (!res.ok) throw new Error(res.status === 401 ? "Wrong username or password" : "Login failed");
+  if (!res.ok) throw new Error(await loginError(res));
   useAuth.getState().setTokens((await res.json()) as Tokens);
+}
+
+async function loginError(res: Response): Promise<string> {
+  if (res.status === 401) return "Wrong username or password";
+  const body = (await res.json().catch(() => null)) as {
+    altcha?: string[];
+    detail?: string;
+  } | null;
+  // 400 is the captcha's verdict; 429 a rate limit, whose detail says how long to wait.
+  return body?.altcha?.[0] ?? body?.detail ?? "Login failed";
 }
 
 // Concurrent 401s share one refresh request instead of racing (refresh tokens rotate).

@@ -1,8 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Home } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { Altcha, type AltchaHandle } from "@/components/altcha";
 import { Field } from "@/components/form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,12 @@ function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const altcha = useRef<AltchaHandle>(null);
   const signIn = useMutation({
-    mutationFn: () => login(username, password),
+    mutationFn: (payload: string) => login(username, password, payload),
+    // Each captcha works once: solve a new one for the next attempt.
+    onError: () => altcha.current?.renew(),
     onSuccess: () => {
       // Start from the realm this account last used, not whatever this browser last showed.
       useRealm.getState().setRealmId(null);
@@ -51,7 +56,7 @@ function LoginPage() {
             className="grid gap-4"
             onSubmit={(e) => {
               e.preventDefault();
-              signIn.mutate();
+              if (captcha) signIn.mutate(captcha);
             }}
           >
             <Field label="Username" htmlFor="username">
@@ -73,9 +78,10 @@ function LoginPage() {
                 required
               />
             </Field>
+            <Altcha ref={altcha} onChange={setCaptcha} />
             {signIn.error && <p className="text-sm text-destructive">{signIn.error.message}</p>}
-            <Button type="submit" disabled={signIn.isPending}>
-              {signIn.isPending ? "Signing in…" : "Sign in"}
+            <Button type="submit" disabled={signIn.isPending || !captcha}>
+              {signIn.isPending ? "Signing in…" : captcha ? "Sign in" : "Checking you're human…"}
             </Button>
           </form>
         </CardContent>

@@ -2,7 +2,12 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path, re_path
 
+from apps.accounts.captcha import AdminLoginForm
 from apps.core.views import spa
+
+# The admin is reachable from the internet too, so its login gets the same captcha as the app's.
+admin.site.login_form = AdminLoginForm
+admin.site.login_template = "accounts/admin_login.html"
 
 # Client-side routes (/transactions etc.) all load the SPA; unknown /api paths stay 404s.
 SPA_ROUTE = r"^(?!(?:api|admin|static)(?:/|$)).*$"

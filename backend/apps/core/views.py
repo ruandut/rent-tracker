@@ -2,13 +2,15 @@ from django.conf import settings
 from django.db import connection
 from django.http import FileResponse
 from django.views.decorators.cache import never_cache
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+# Docker's healthcheck polls this; a rate limit must never mark the container unhealthy.
+@throttle_classes([])
 def health(request):
     with connection.cursor() as cursor:
         cursor.execute("SELECT 1")

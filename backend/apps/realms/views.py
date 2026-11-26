@@ -5,11 +5,14 @@ from django.contrib.auth import get_user_model
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from apps.accounts import captcha
+from apps.core.throttling import AuthThrottle, with_defaults
 
 from . import services
 from .models import Realm, RealmInvitation, RealmMembership
@@ -194,6 +197,7 @@ def _pending_by_token(token) -> RealmInvitation:
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes(with_defaults(AuthThrottle))
 def invitation_by_token(request, token):
     invitation = _pending_by_token(token)
     return Response(
@@ -208,8 +212,10 @@ def invitation_by_token(request, token):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes(with_defaults(AuthThrottle))
 def register(request):
     """Creates an account from an invitation link and signs it in. There's no open sign-up."""
+    captcha.verify(request)
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data

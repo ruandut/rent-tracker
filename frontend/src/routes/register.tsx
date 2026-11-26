@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Home } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { Altcha, type AltchaHandle } from "@/components/altcha";
 import { Field } from "@/components/form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -109,13 +110,18 @@ function RegisterForm({ invite }: { invite: string }) {
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const mismatch = repeat !== "" && repeat !== password;
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const altcha = useRef<AltchaHandle>(null);
   const register = useMutation({
-    mutationFn: () =>
+    mutationFn: (payload: string) =>
       publicApi<{ access: string; refresh: string }>("/api/auth/register/", {
         invite,
         username: username.trim(),
         password,
+        altcha: payload,
       }),
+    // Each captcha works once: solve a new one for the next attempt.
+    onError: () => altcha.current?.renew(),
     onSuccess: (tokens) => {
       useAuth.getState().setTokens(tokens);
       // The new account is focused on the invitation's realm; let /me say which it is.
@@ -129,7 +135,7 @@ function RegisterForm({ invite }: { invite: string }) {
       className="grid gap-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!mismatch) register.mutate();
+        if (!mismatch && captcha) register.mutate(captcha);
       }}
     >
       <Field label="Username" htmlFor="username">
@@ -163,9 +169,14 @@ function RegisterForm({ invite }: { invite: string }) {
         />
       </Field>
       {mismatch && <p className="text-sm text-destructive">The passwords don't match.</p>}
+      <Altcha ref={altcha} onChange={setCaptcha} />
       {register.error && <p className="text-sm text-destructive">{register.error.message}</p>}
-      <Button type="submit" disabled={register.isPending || mismatch}>
-        {register.isPending ? "Creating your account…" : "Create account and join"}
+      <Button type="submit" disabled={register.isPending || mismatch || !captcha}>
+        {register.isPending
+          ? "Creating your account…"
+          : captcha
+            ? "Create account and join"
+            : "Checking you're human…"}
       </Button>
     </form>
   );
