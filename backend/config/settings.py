@@ -28,9 +28,11 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "django_altcha",
-    # Shared plumbing from django-foundation: Hatchet jobs, the captcha, rate limits, headers.
+    # Shared plumbing from django-foundation: Hatchet jobs, the captcha, rate limits, headers,
+    # and database backups (Django admin, superusers only).
     "foundation.jobs",
     "foundation.security",
+    "foundation.backups",
     # Platform apps: shared plumbing, no product features.
     "apps.core",
     "apps.accounts",
@@ -47,6 +49,9 @@ MIDDLEWARE = [
     # CSP and Permissions-Policy. Above WhiteNoise, so the files it serves get them too.
     *foundation.SECURITY_MIDDLEWARE,
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # 503 while a rollback runs. Below WhiteNoise, so the SPA's files still load and an open tab
+    # can show its maintenance page; above everything that touches the database.
+    *foundation.BACKUPS_MIDDLEWARE,
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -137,6 +142,16 @@ CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 # The SPA's widget must wait a little longer than CAPTCHA_MIN_SECONDS (3 s): CAPTCHA_MIN_MS in
 # frontend/src/components/altcha.tsx.
 globals().update(foundation.security(env, secret_key=SECRET_KEY))
+
+# --- Database backups ------------------------------------------------------
+# Scheduled pg_dump backups and rollbacks, in Django admin (foundation.backups). Dumps go to
+# BACKUP_ROOT (in production a volume of its own), or to Amazon S3 or an S3-compatible service
+# when AWS_S3_BACKUP_BUCKET is set. They hold every realm's data: keep them private.
+globals().update(foundation.backups(env, media_root=BASE_DIR / "media", name="rent-tracker"))
+MAINTENANCE_MESSAGE = (
+    "Rent Tracker is down for maintenance while its data is restored from a backup. "
+    "It will be back shortly."
+)
 
 # The worker's name in Hatchet's dashboard (manage.py hatchet_worker, from foundation.jobs).
 HATCHET_WORKER_NAME = "rent-tracker-worker"

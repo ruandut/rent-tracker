@@ -143,7 +143,27 @@ The app's own protection, which applies either way:
 All three come from [django-foundation](https://github.com/ruandut/django-foundation), the shared package for the
 captcha, rate limits, headers and the Hatchet worker; `config/settings.py` switches them on.
 
-**Backups:** the database holds real financial records and nothing backs it up yet.
+### Backups
+
+Database backups live in the Django admin (`/admin/`, **Database backups**), which only
+superusers see: the first login the Compose file creates is one. A dump holds every realm.
+
+- **Schedules:** add one with a cron expression in UTC (`0 0 * * *` runs at 02:00 in South
+  Africa) and how many backups to keep. The worker runs them through Hatchet and deletes the
+  oldest beyond that. **Back up now** above the Backups list takes one straight away.
+- **Where they go:** the `rent-tracker-backups` Docker volume, on the same disk as the
+  database. Copy it somewhere else as well, or add `AWS_S3_BACKUP_BUCKET` (plus
+  `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and, for an S3-compatible service,
+  `AWS_S3_ENDPOINT_URL`) to the Compose file's shared environment and choose Amazon S3 on a
+  schedule.
+- **Rolling back:** choose a backup and the action **Roll the database back to this backup**.
+  It takes a fresh backup first, so it can be undone, and restores in one transaction. Meanwhile
+  everyone sees a maintenance page, which comes back by itself, signed in, when it's done. Only a
+  backup made since the last migration can be restored.
+
+The backups come from [django-foundation](https://github.com/ruandut/django-foundation)'s
+`foundation.backups`. Locally they need `pg_dump` 18 or newer: `brew install libpq` and set
+`PG_DUMP=/opt/homebrew/opt/libpq/bin/pg_dump` in `backend/.env`. They land in `backend/media/`.
 
 ## What's where
 

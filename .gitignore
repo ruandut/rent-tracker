@@ -9,6 +9,8 @@ backend/.ruff_cache/
 node_modules/
 frontend/dist/
 backend/staticfiles/
+# Local backups (BACKUP_ROOT's default): real data.
+backend/media/
 # Holds real secrets; written by scripts/generate_compose.sh.
 deploy/rent-tracker.compose.yml
 *.local

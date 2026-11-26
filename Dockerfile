@@ -10,6 +10,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH=/opt/venv/bin:$PATH
+# pg_dump and pg_restore for database backups (django-foundation's backups app). From the
+# PostgreSQL project's own apt repository, so they match the postgres:18 server in Compose:
+# Debian's own are older, and pg_dump refuses a newer server.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-common \
+    && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+    && apt-get install -y --no-install-recommends postgresql-client-18 \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv
 WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock ./

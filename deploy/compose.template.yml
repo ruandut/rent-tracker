@@ -23,6 +23,10 @@ x-app-env: &app-env
   # https:// origin to CSRF_TRUSTED_ORIGINS (comma-separated).
   NUM_PROXIES: "0"
   HTTPS: "false"
+  # Database backups (Django admin, Database backups). The worker writes dumps here and web
+  # deletes them; both mount the backups volume. Copy it off the server too, or set
+  # AWS_S3_BACKUP_BUCKET and credentials to send schedules to S3 or an S3-compatible service.
+  BACKUP_ROOT: /backups
 
 x-app: &app
   # Published from main by .github/workflows/publish-image.yml.
@@ -122,6 +126,8 @@ services:
         exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 2 --access-logfile -
     ports:
       - "__PORT__:8000"
+    volumes:
+      - backups:/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,6 +154,7 @@ services:
       - HATCHET_CLIENT_TOKEN=$$(cat /token/client-token) exec python manage.py hatchet_worker
     volumes:
       - hatchet_token:/token:ro
+      - backups:/backups
     depends_on:
       web:
         condition: service_healthy
@@ -163,3 +170,5 @@ volumes:
     name: rent-tracker-hatchet-config
   hatchet_token:
     name: rent-tracker-hatchet-token
+  backups:
+    name: rent-tracker-backups

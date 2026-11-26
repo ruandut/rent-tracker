@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { noteMaintenance } from "@/lib/maintenance";
 import { queryClient } from "@/lib/query-client";
 import type { RealmRole } from "@/lib/types";
 import { refreshAccessToken, useAuth } from "@/stores/auth";
@@ -51,9 +52,12 @@ async function authedFetch(path: string, init: RequestInit): Promise<Response> {
   };
 
   let res = await send(useAuth.getState().access);
+  // Down for maintenance says nothing about the session: keep it for when the app is back.
+  if (await noteMaintenance(res)) return res;
   if (res.status === 401) {
     const fresh = await refreshAccessToken();
     if (fresh) res = await send(fresh);
+    if (await noteMaintenance(res)) return res;
   }
   if (res.status === 401) {
     useAuth.getState().clear();

@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
+import { noteMaintenance } from "@/lib/maintenance";
 import { useAuth } from "@/stores/auth";
 import { useRealm } from "@/stores/realm";
 
@@ -34,6 +35,7 @@ async function publicApi<T>(path: string, body?: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  await noteMaintenance(res);
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, data);
   return data as T;

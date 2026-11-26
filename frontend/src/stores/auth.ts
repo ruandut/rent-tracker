@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { noteMaintenance } from "@/lib/maintenance";
+
 type Tokens = { access: string; refresh: string };
 
 type AuthState = {
@@ -33,6 +35,7 @@ export async function login(username: string, password: string, altcha: string):
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password, altcha }),
   });
+  await noteMaintenance(res);
   if (!res.ok) throw new Error(await loginError(res));
   useAuth.getState().setTokens((await res.json()) as Tokens);
 }
@@ -59,6 +62,8 @@ export function refreshAccessToken(): Promise<string | null> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
     });
+    // Down for maintenance: keep the session for when the app is back.
+    if (await noteMaintenance(res)) return null;
     if (!res.ok) {
       clear();
       return null;
