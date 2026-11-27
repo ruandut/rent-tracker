@@ -52,12 +52,10 @@ one Compose file, then copy it to the server, which pulls the published app imag
 nothing else. Only the web app is reachable from the network; Django serves the API and the built
 frontend.
 
-Changes reach `main` through pull requests. CI (`.github/workflows/ci.yml`) runs on each pull
-request and again on `main` after the merge: `lint` (ruff, `vp check`, the Dockerfile's lint) and
-`test` (pytest against Postgres 18). Once it passes on `main`, `.github/workflows/publish-image.yml`
-builds the image and publishes it as `ghcr.io/<owner>/<repo>:latest` (and as the commit's SHA). In a fork, run the action once, then set the package to public
-under your GitHub profile's **Packages → Package settings**, so servers can pull it without a
-login.
+The image comes from GitHub Actions; servers pull it and never build it. In a fork, merge to
+`main` once, then set the package to public under your GitHub profile's **Packages → Package
+settings**, so servers can pull it without a login. [Releases and CI](#releases-and-ci) covers
+how changes become a release.
 
 ### First deploy
 
@@ -101,12 +99,29 @@ in the repo. Keep a copy somewhere safe.
 
 ### Updating
 
-Merge to `main` and wait for the **Publish image** action to finish. Then update the project in
-the Docker app, or run `docker compose pull` and `docker compose up -d`. Data lives in the
-`postgres_data` Docker volume and survives updates.
+When a release is published (see [Releases and CI](#releases-and-ci)), update the project in the
+Docker app, or run `docker compose pull` and `docker compose up -d`. The Docker app notices when
+`latest` has changed. Merges that aren't releases never change `latest`, so they never reach the
+server. Data lives in the `postgres_data` Docker volume and survives updates. The version a
+server runs is at the bottom of the menu under your name.
 
-When the template changes, run `make compose` again with the same answers and paste the new file
-into the Docker app. It keeps your existing secrets and only generates ones that are missing.
+Read the release's notes first. When one needs new Compose contents, run `make compose` again
+with the same answers and paste the new file into the Docker app **before** updating, since the
+new app may not start without them. It keeps your existing secrets and only generates ones that
+are missing. Click **Back up now** in the Django admin's Database backups before updating too.
+
+### Rolling back
+
+To go back to an earlier release, change the image line in the Docker app's Compose file from
+`ghcr.io/<owner>/<repo>:latest` to that release, e.g. `ghcr.io/<owner>/<repo>:0.1.0`, and
+redeploy. Put `latest` back once a fixed release is out: a pinned server never sees updates.
+Every release stays in the registry under its version, and every merge to `main` under
+`sha-<commit>`.
+
+This is safe when the newer release didn't change the database. When it did (its notes say it
+has migrations), the older app may not work with the newer tables, and the admin's rollback only
+restores backups made since the last migration. Then fix forward instead: revert or fix the
+change on `dev`, bump the patch version and release it.
 
 ### Troubleshooting
 
@@ -182,6 +197,35 @@ superusers see: the first login the Compose file creates is one. A dump holds ev
 The backups come from [django-foundation](https://github.com/ruandut/django-foundation)'s
 `foundation.backups`. Locally they need `pg_dump` 18 or newer: `brew install libpq` and set
 `PG_DUMP=/opt/homebrew/opt/libpq/bin/pg_dump` in `backend/.env`. They land in `backend/media/`.
+
+## Releases and CI
+
+The flow: work on `dev` → pull request to `main` → CI on the pull request → merge → CI on `main`
+→ the image is published → if the version is new, it's a release.
+
+- **CI** (`.github/workflows/ci.yml`) runs on every pull request and every push to `main`, as two
+  jobs side by side: `lint` (ruff, the frontend's `vp check`, the Dockerfile's lint) and `test`
+  (pytest against Postgres 18).
+- **Publish image** (`.github/workflows/publish-image.yml`) runs once CI passes on `main`. Every
+  merge's image is pushed as `main` and `sha-<commit>`.
+- **Releases** follow [semantic versioning](https://semver.org), and the version is the one in
+  `backend/pyproject.toml`. When a merge to `main` carries a version that has no `v<version>` tag
+  yet, Publish image also tags the image `X.Y.Z`, `X.Y`, `X` and `latest`, tags the
+  commit `vX.Y.Z`, and publishes a GitHub Release whose notes list the merged pull requests.
+  Merges that leave the version alone release nothing.
+
+To release, bump `version` in `backend/pyproject.toml` on `dev` (and run `uv lock` in
+`backend/`), open a pull request to `main`, and merge it once CI passes. Pick the number by what
+changed since the last release:
+
+- **patch** (`0.4.0` → `0.4.1`): fixes only;
+- **minor** (`0.4.1` → `0.5.0`): new features, or anything that needs new Compose contents or a
+  migration. Say which in the pull request, so the release notes carry it;
+- **major** (`1.0.0` → `2.0.0`): a change that breaks what people rely on. Before 1.0, minor
+  versions stand in for these.
+
+A version such as `0.5.0rc1` is published as a pre-release, tagged only `0.5.0rc1`, for trying
+on a server by pinning it. Never move or delete a published `v*` tag or image version.
 
 ## What's where
 

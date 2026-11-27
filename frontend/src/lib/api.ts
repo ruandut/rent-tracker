@@ -167,6 +167,8 @@ export type Me = {
   realm: RealmRef | null;
   realms: RealmRef[];
   pending_invitations: number;
+  /** The release running, and the commit its image was built from (null when run locally). */
+  app: { version: string; commit: string | null };
 };
 
 /** Keyed by the tab's realm, as the answer depends on the X-Realm header sent with it. */

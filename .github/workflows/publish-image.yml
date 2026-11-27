@@ -1,9 +1,16 @@
 name: Publish image
 
-# After CI passes on main, builds the app image from that commit and publishes it to GitHub's
-# registry as `latest` and as the commit's SHA. Servers run `latest`, so their Docker app can see
-# when it has changed and offer an update. Never for pull requests, never on red. "Run workflow"
-# on main republishes by hand, e.g. after a failed push to the registry.
+# After CI passes on main, builds the app image from that commit and pushes it to GitHub's
+# registry. Never for pull requests, never on red.
+#
+# Every run pushes `main` and `sha-<commit>`. When backend/pyproject.toml's version has no
+# v<version> tag yet, the run is also a release: the image gets `X.Y.Z`, `X.Y`, `X` and `latest`,
+# and the commit is tagged vX.Y.Z with a GitHub Release whose notes list the merged pull requests.
+# Servers run `latest`, so only releases reach them. A version like 0.3.0rc1 is a pre-release:
+# tagged `0.3.0rc1` only, never `latest`.
+#
+# "Run workflow" on main rebuilds main's last commit, e.g. after a failed push to the registry. It
+# releases only if that version hasn't been released.
 
 on:
   workflow_run:
@@ -13,7 +20,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # the release's tag and GitHub Release
   packages: write
 
 concurrency:
@@ -29,31 +36,87 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Only main is published
         if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
         run: |
           echo "Run this from main: servers run what it publishes." >&2
           exit 1
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.SHA }}
+
+      - name: Read the version
+        id: version
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("backend/pyproject.toml", "rb"))["project"]["version"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "short=${SHA::7}" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "v$version is already released: publishing main and sha tags only."
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Releasing v$version."
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+          # PEP 440 pre-releases: 1.2.0a1, 1.2.0b2, 1.2.0rc1, 1.2.0.dev1
+          if [[ "$version" =~ (a|b|rc|\.dev)[0-9]+$ ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Registry names must be lowercase, and an owner or repo name might not be.
+      - id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        env:
+          NEW: ${{ steps.version.outputs.new }}
+          FINAL: ${{ steps.version.outputs.new == 'true' && steps.version.outputs.prerelease == 'false' }}
+        with:
+          images: ${{ steps.image.outputs.name }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=main
+            type=raw,value=sha-${{ steps.version.outputs.short }}
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ env.NEW }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.tag }},enable=${{ env.FINAL }}
+            type=semver,pattern={{major}},value=${{ steps.version.outputs.tag }},enable=${{ env.FINAL }}
+            type=raw,value=latest,enable=${{ env.FINAL }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.revision=${{ env.SHA }}
+
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # Registry names must be lowercase, and an owner or repo name might not be.
-      - id: image
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ steps.image.outputs.name }}:latest
-            ${{ steps.image.outputs.name }}:${{ env.SHA }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: APP_COMMIT=${{ env.SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # After the image is pushed, so a release always has its image.
+      - name: Tag and publish the release
+        if: steps.version.outputs.new == 'true'
+        run: |
+          flags=()
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then flags+=(--prerelease); fi
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --target "$SHA" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --generate-notes \
+            "${flags[@]}"
