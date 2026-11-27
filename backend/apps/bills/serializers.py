@@ -16,6 +16,7 @@ from .models import (
     BillTemplate,
     BillUnit,
     Destination,
+    Meter,
 )
 from .services import save_bill, save_template
 
@@ -362,6 +363,42 @@ class BillSerializer(BillSummarySerializer):
     def update(self, instance, validated_data):
         units = validated_data.pop("units", None)
         return save_bill(instance, validated_data, units)
+
+
+class MeterSerializer(RealmScopedSerializer):
+    realm_unique = {("number",): "There's already a meter with this number."}
+    rental_unit_name = serializers.CharField(source="rental_unit.name", read_only=True)
+
+    class Meta:
+        model = Meter
+        fields = [
+            "id",
+            "kind",
+            "number",
+            "rental_unit",
+            "rental_unit_name",
+            "prepaid",
+            "connection",
+            "tariff",
+            "notes",
+        ]
+
+
+class BillPdfSerializer(serializers.Serializer):
+    """A bill PDF to read, and the template whose sections its lines go into."""
+
+    file = serializers.FileField(validators=[FileExtensionValidator(allowed_extensions=["pdf"])])
+    template = serializers.PrimaryKeyRelatedField(queryset=BillTemplate.objects.none())
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        realm = self.context["realm"]
+        self.fields["template"].queryset = BillTemplate.objects.filter(realm=realm)
+
+    def validate_file(self, value):
+        if value.size > MAX_ATTACHMENT_BYTES:
+            raise serializers.ValidationError("The file is larger than 10 MB.")
+        return value
 
 
 class AttachmentUploadSerializer(serializers.Serializer):

@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { FileUp, Plus } from "lucide-react";
+import { useRef } from "react";
 
+import { handOffPdf } from "@/components/bill-editor";
 import { EmptyState, Page, Stat, TableSkeleton } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +31,7 @@ const usageText = (services: Record<string, BillService>) =>
 function BillsPage() {
   const { data: rows, isPending } = useList<BillSummary>("bills");
   const navigate = useNavigate();
+  const pdfInput = useRef<HTMLInputElement>(null);
 
   const total = rows?.reduce((sum, row) => sum + row.total, 0) ?? 0;
   const water =
@@ -48,11 +51,30 @@ function BillsPage() {
       filters
       description="Each bill, split by rental unit, line by line. Saving one fills in Water & electricity and Rates & taxes."
       actions={
-        <Button asChild>
-          <Link to="/bills/new">
-            <Plus /> Log bill
-          </Link>
-        </Button>
+        <>
+          <Button variant="outline" onClick={() => pdfInput.current?.click()}>
+            <FileUp /> Upload PDF
+          </Button>
+          <input
+            ref={pdfInput}
+            type="file"
+            hidden
+            aria-label="Bill PDF"
+            accept=".pdf,application/pdf"
+            onChange={(e) => {
+              const pdf = e.target.files?.[0];
+              e.target.value = "";
+              if (!pdf) return;
+              handOffPdf(pdf);
+              void navigate({ to: "/bills/new" });
+            }}
+          />
+          <Button asChild>
+            <Link to="/bills/new">
+              <Plus /> Log bill
+            </Link>
+          </Button>
+        </>
       }
     >
       <div className="grid gap-4 sm:grid-cols-3">
@@ -121,7 +143,7 @@ function BillsPage() {
         </div>
       ) : (
         <EmptyState title="No bills in this period">
-          Use Log bill to enter one, with the bill open next to the form.
+          Upload a bill's PDF to have its numbers read in, or use Log bill to enter one by hand.
         </EmptyState>
       )}
     </Page>

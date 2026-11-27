@@ -214,6 +214,64 @@ export type Bill = Omit<BillSummary, "units"> & {
   attachment: { filename: string; content_type: string; size: number } | null;
 };
 
+/** A bill line read from a PDF. Amounts and readings come back as printed, in strings. */
+export type BillPdfLine = {
+  section: string;
+  charge_type: BillChargeType;
+  description: string;
+  meter_number: string;
+  meter_previous: string | null;
+  meter_current: string | null;
+  reading_from: string | null;
+  reading_to: string | null;
+  usage: string | null;
+  amount_excl: string;
+  vat: string;
+};
+
+export type MeterKind = "water" | "electricity";
+export const METER_KINDS: Record<MeterKind, string> = {
+  water: "Water",
+  electricity: "Electricity",
+};
+
+/** A municipal meter and the rental unit it serves, so bill PDFs can split by unit. */
+export type Meter = {
+  id: Id;
+  kind: MeterKind;
+  number: string;
+  rental_unit: Id;
+  rental_unit_name: string;
+  prepaid: boolean;
+  connection: string;
+  tariff: string;
+  notes: string;
+};
+
+/** A meter printed on a bill PDF, with the unit it's linked to (null until it is). */
+export type BillPdfMeter = {
+  kind: MeterKind;
+  number: string;
+  prepaid: boolean;
+  tariff: string;
+  connection: string;
+  usage: string | null;
+  rental_unit: Id | null;
+};
+
+/** What /api/bills/read-pdf/ found in a bill PDF. Nothing is saved until the form is. */
+export type BillPdfDraft = {
+  period: string | null;
+  values: Record<string, string | null>;
+  /** One unit with no rental unit until every meter is linked; then one per meter's unit. */
+  units: { rental_unit: Id | null; lines: BillPdfLine[] }[];
+  meters: BillPdfMeter[];
+  checks: { ok: boolean; label: string }[];
+  notes: string[];
+  raw_text: string;
+  existing_bill: Id | null;
+};
+
 export type SummaryChannel = "email" | "telegram";
 export type SummaryFrequency = "once" | "daily" | "weekly" | "monthly";
 

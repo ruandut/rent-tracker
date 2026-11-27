@@ -18,6 +18,7 @@ import { Route as AppBillsIndexRouteImport } from './routes/_app/bills/index'
 import { Route as AppBillsBillIdRouteImport } from './routes/_app/bills/$billId'
 import { Route as AppBillsNewRouteImport } from './routes/_app/bills/new'
 import { Route as AppChargesIndexRouteImport } from './routes/_app/charges/index'
+import { Route as AppMetersIndexRouteImport } from './routes/_app/meters/index'
 import { Route as AppPaymentMethodsIndexRouteImport } from './routes/_app/payment-methods/index'
 import { Route as AppRealmsIndexRouteImport } from './routes/_app/realms/index'
 import { Route as AppRealmsRealmIdRouteImport } from './routes/_app/realms/$realmId'
@@ -73,6 +74,11 @@ const AppBillsNewRoute = AppBillsNewRouteImport.update({
 const AppChargesIndexRoute = AppChargesIndexRouteImport.update({
   id: '/charges/',
   path: '/charges/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMetersIndexRoute = AppMetersIndexRouteImport.update({
+  id: '/meters/',
+  path: '/meters/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPaymentMethodsIndexRoute = AppPaymentMethodsIndexRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/beneficiaries/': typeof AppBeneficiariesIndexRoute
   '/bills/': typeof AppBillsIndexRoute
   '/charges/': typeof AppChargesIndexRoute
+  '/meters/': typeof AppMetersIndexRoute
   '/payment-methods/': typeof AppPaymentMethodsIndexRoute
   '/realms/': typeof AppRealmsIndexRoute
   '/security/': typeof AppSecurityIndexRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/beneficiaries': typeof AppBeneficiariesIndexRoute
   '/bills': typeof AppBillsIndexRoute
   '/charges': typeof AppChargesIndexRoute
+  '/meters': typeof AppMetersIndexRoute
   '/payment-methods': typeof AppPaymentMethodsIndexRoute
   '/realms': typeof AppRealmsIndexRoute
   '/security': typeof AppSecurityIndexRoute
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/_app/beneficiaries/': typeof AppBeneficiariesIndexRoute
   '/_app/bills/': typeof AppBillsIndexRoute
   '/_app/charges/': typeof AppChargesIndexRoute
+  '/_app/meters/': typeof AppMetersIndexRoute
   '/_app/payment-methods/': typeof AppPaymentMethodsIndexRoute
   '/_app/realms/': typeof AppRealmsIndexRoute
   '/_app/security/': typeof AppSecurityIndexRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/beneficiaries/'
     | '/bills/'
     | '/charges/'
+    | '/meters/'
     | '/payment-methods/'
     | '/realms/'
     | '/security/'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/beneficiaries'
     | '/bills'
     | '/charges'
+    | '/meters'
     | '/payment-methods'
     | '/realms'
     | '/security'
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/_app/beneficiaries/'
     | '/_app/bills/'
     | '/_app/charges/'
+    | '/_app/meters/'
     | '/_app/payment-methods/'
     | '/_app/realms/'
     | '/_app/security/'
@@ -343,6 +355,13 @@ declare module '@tanstack/react-router' {
       path: '/charges'
       fullPath: '/charges/'
       preLoaderRoute: typeof AppChargesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/meters/': {
+      id: '/_app/meters/'
+      path: '/meters'
+      fullPath: '/meters/'
+      preLoaderRoute: typeof AppMetersIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/payment-methods/': {
@@ -442,6 +461,7 @@ interface AppRouteChildren {
   AppBeneficiariesIndexRoute: typeof AppBeneficiariesIndexRoute
   AppBillsIndexRoute: typeof AppBillsIndexRoute
   AppChargesIndexRoute: typeof AppChargesIndexRoute
+  AppMetersIndexRoute: typeof AppMetersIndexRoute
   AppPaymentMethodsIndexRoute: typeof AppPaymentMethodsIndexRoute
   AppRealmsIndexRoute: typeof AppRealmsIndexRoute
   AppSecurityIndexRoute: typeof AppSecurityIndexRoute
@@ -463,6 +483,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBeneficiariesIndexRoute: AppBeneficiariesIndexRoute,
   AppBillsIndexRoute: AppBillsIndexRoute,
   AppChargesIndexRoute: AppChargesIndexRoute,
+  AppMetersIndexRoute: AppMetersIndexRoute,
   AppPaymentMethodsIndexRoute: AppPaymentMethodsIndexRoute,
   AppRealmsIndexRoute: AppRealmsIndexRoute,
   AppSecurityIndexRoute: AppSecurityIndexRoute,
