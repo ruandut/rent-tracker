@@ -8,6 +8,7 @@ import {
   ChevronsUpDown,
   CreditCard,
   Droplets,
+  Gauge,
   Home,
   Landmark,
   LayoutDashboard,
@@ -67,6 +68,7 @@ const PROPERTY: NavItem[] = [
   { to: "/utilities", label: "Water & electricity", icon: Droplets },
   { to: "/charges", label: "Rates & taxes", icon: Landmark },
   { to: "/units", label: "Rental units", icon: Building2 },
+  { to: "/meters", label: "Meters", icon: Gauge },
 ];
 const SETUP: NavItem[] = [
   { to: "/templates", label: "Municipal templates", icon: LayoutTemplate },

@@ -2,15 +2,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  CircleAlert,
+  CircleCheck,
   Copy,
   Download,
   FileUp,
+  Info,
   PanelRightClose,
   PanelRightOpen,
   Plus,
+  ScanText,
   X,
 } from "lucide-react";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { Field, NativeSelect } from "@/components/form";
@@ -29,7 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api, apiBlob, useAll, useRemove } from "@/lib/api";
-import { formatMoney, parseBillAmount, thisMonth } from "@/lib/format";
+import { formatMoney, formatMonth, parseBillAmount, thisMonth } from "@/lib/format";
 import {
   BILL_BUILTINS,
   BILL_CHARGE_TYPES,
@@ -38,6 +42,10 @@ import {
   type BillChargeType,
   type BillLayout,
   type BillLine,
+  METER_KINDS,
+  type BillPdfDraft,
+  type BillPdfLine,
+  type BillPdfMeter,
   type RentalUnit,
   type TemplateField,
   type TemplateSection,
@@ -155,6 +163,70 @@ export const carryForward = (previous: Bill, layout: BillLayout): BillForm => {
           },
         })),
     })),
+  };
+};
+
+/** A PDF picked on the bills list, waiting for the new bill's editor to read it. */
+let handedOff: File | null = null;
+export const handOffPdf = (file: File) => {
+  handedOff = file;
+};
+
+const isPdf = (file: File) => file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+
+const draftLine = (line: BillPdfLine, layout: BillLayout): LineForm => {
+  const section = layout.sections.find((other) => other.key === line.section);
+  return {
+    key: nextKey++,
+    section: line.section,
+    charge_type: line.charge_type,
+    description: line.description,
+    amount_excl: shown(line.amount_excl, "money"),
+    values: fieldValues(section?.fields ?? [], LINE_BUILTINS, line, {}),
+  };
+};
+
+/**
+ * The form with a PDF's numbers in: its bill fields, and its lines. Once its meters are linked
+ * the PDF says which unit gets what, so its units replace the form's; until then every line
+ * goes on one unit's tab.
+ */
+const applyDraft = (
+  form: BillForm,
+  draft: BillPdfDraft,
+  layout: BillLayout,
+  unitKey: number,
+  onlyUnit: string,
+): BillForm => {
+  const split = draft.units.some((unit) => unit.rental_unit !== null);
+  const units = split
+    ? draft.units.map((unit) => ({
+        key: nextKey++,
+        rental_unit: String(unit.rental_unit),
+        lines: unit.lines.map((line) => draftLine(line, layout)),
+      }))
+    : form.units.map((unit) =>
+        unit.key === unitKey
+          ? {
+              ...unit,
+              rental_unit: unit.rental_unit || onlyUnit,
+              lines: draft.units[0].lines.map((line) => draftLine(line, layout)),
+            }
+          : unit,
+      );
+  return {
+    ...form,
+    month: draft.period ? draft.period.slice(0, 7) : form.month,
+    values: {
+      ...form.values,
+      ...Object.fromEntries(
+        layout.bill_fields
+          .filter((field) => field.key in draft.values)
+          .map((field) => [field.key, shown(draft.values[field.key], field.type)]),
+      ),
+    },
+    raw_text: draft.raw_text,
+    units,
   };
 };
 
@@ -289,6 +361,7 @@ export function BillEditor({
   const [confirming, setConfirming] = useState(false);
   const [removingUnit, setRemovingUnit] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ file: string; found: BillPdfDraft } | null>(null);
   const units = useAll<RentalUnit>("units");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -352,6 +425,47 @@ export function BillEditor({
     set("units", rest);
     setActiveKey(rest[0].key);
   };
+
+  // A bill keeps its own layout, but reading a PDF needs the template it was logged on.
+  const readTemplate = templateId ?? bill?.template ?? undefined;
+  const read = useMutation({
+    mutationFn: (pdf: File) => {
+      const body = new FormData();
+      body.append("file", pdf);
+      body.append("template", String(readTemplate));
+      return api<BillPdfDraft>("/api/bills/read-pdf/", { method: "POST", body });
+    },
+    onSuccess: (found, pdf) => {
+      const open = (units.data ?? []).filter((unit) => unit.is_active);
+      const onlyUnit = open.length === 1 ? String(open[0].id) : "";
+      const next = applyDraft(form, found, layout, active.key, onlyUnit);
+      setForm(next);
+      if (!next.units.some((unit) => unit.key === active.key)) setActiveKey(next.units[0].key);
+      setDraft({ file: pdf.name, found });
+      setProblem(null);
+      if (found.checks.every((check) => check.ok)) toast.success("Read the bill, and it adds up");
+      else toast.warning("Read the bill, but some checks failed");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  /** Picking a PDF for a new bill reads it straight away; on a logged bill, it's a button. */
+  const chooseFile = (picked: File | null) => {
+    setFile(picked);
+    if (!picked) setDraft(null);
+    if (picked && !bill && isPdf(picked) && readTemplate !== undefined) read.mutate(picked);
+  };
+
+  // A PDF chosen on the bills list. The ref keeps StrictMode's second run from reading it twice.
+  const tookHandOff = useRef(false);
+  useEffect(() => {
+    if (tookHandOff.current) return;
+    tookHandOff.current = true;
+    const pdf = handedOff;
+    handedOff = null;
+    if (pdf) chooseFile(pdf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the first render's hand-off
+  }, []);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -440,6 +554,29 @@ export function BillEditor({
         )}
       >
         <div className="order-2 grid min-w-0 gap-4 xl:order-1">
+          {read.isPending && (
+            <p className="rounded-xl border p-4 text-sm text-muted-foreground">Reading the PDF…</p>
+          )}
+          {draft && (
+            <PdfReport
+              file={draft.file}
+              draft={draft.found}
+              unitName={
+                form.units.length > 1 && draft.found.units[0].rental_unit === null
+                  ? unitName(active)
+                  : null
+              }
+              units={units.data ?? []}
+              onLinked={(meters) => {
+                setDraft(
+                  (current) => current && { ...current, found: { ...current.found, meters } },
+                );
+                // Every meter has a unit now, so reading again splits the bill between them.
+                if (file && meters.every((meter) => meter.rental_unit !== null)) read.mutate(file);
+              }}
+              onDismiss={() => setDraft(null)}
+            />
+          )}
           <section className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Bill month" htmlFor="b-month">
               <Input
@@ -581,7 +718,13 @@ export function BillEditor({
               rawText={form.raw_text}
               onRawText={(value) => set("raw_text", value)}
               file={file}
-              onFile={setFile}
+              onFile={chooseFile}
+              onRead={
+                file && isPdf(file) && readTemplate !== undefined
+                  ? () => read.mutate(file)
+                  : undefined
+              }
+              reading={read.isPending}
             />
           </div>
         )}
@@ -664,6 +807,174 @@ export function BillEditor({
         </AlertDialogContent>
       </AlertDialog>
     </form>
+  );
+}
+
+/** What reading the PDF found, and every check it ran on the numbers. */
+function PdfReport({
+  file,
+  draft,
+  unitName,
+  units,
+  onLinked,
+  onDismiss,
+}: {
+  file: string;
+  draft: BillPdfDraft;
+  unitName: string | null;
+  units: RentalUnit[];
+  onLinked: (meters: BillPdfMeter[]) => void;
+  onDismiss: () => void;
+}) {
+  const allOk = draft.checks.every((check) => check.ok);
+  return (
+    <section
+      className={cn(
+        "grid gap-2 rounded-xl border p-4 text-sm",
+        allOk ? "border-emerald-600/40" : "border-rose-600/40",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="min-w-0 font-medium break-words">
+          Filled in from {file}
+          <span className="block font-normal text-muted-foreground">
+            Nothing is saved yet. Check the lines against the bill, then save.
+          </span>
+        </h3>
+        <Button type="button" variant="ghost" size="icon" aria-label="Hide" onClick={onDismiss}>
+          <X />
+        </Button>
+      </div>
+      {draft.existing_bill !== null && draft.period && (
+        <p className="flex gap-2 text-amber-700 dark:text-amber-400">
+          <CircleAlert className="mt-0.5 size-4 shrink-0" />
+          <span>
+            This account already has a bill for {formatMonth(draft.period)}, so saving another will
+            be refused.{" "}
+            <Link
+              to="/bills/$billId"
+              params={{ billId: String(draft.existing_bill) }}
+              className="underline"
+            >
+              Open that one
+            </Link>
+          </span>
+        </p>
+      )}
+      {draft.meters.length > 0 && (
+        <MeterLinks meters={draft.meters} units={units} onLinked={onLinked} />
+      )}
+      <ul className="grid gap-1">
+        {draft.checks.map((check) => (
+          <li key={check.label} className="flex gap-2">
+            {check.ok ? (
+              <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <CircleAlert className="mt-0.5 size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+            )}
+            <span className={check.ok ? undefined : "text-rose-700 dark:text-rose-300"}>
+              {check.label}
+            </span>
+          </li>
+        ))}
+        {[
+          ...draft.notes,
+          ...(unitName
+            ? [
+                `Every line went onto ${unitName}. Move the other units' shares to their tabs before saving.`,
+              ]
+            : []),
+        ].map((note) => (
+          <li key={note} className="flex gap-2 text-muted-foreground">
+            <Info className="mt-0.5 size-4 shrink-0" />
+            <span>{note}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The bill's meters and their units, with a picker for each one not linked yet. */
+function MeterLinks({
+  meters,
+  units,
+  onLinked,
+}: {
+  meters: BillPdfMeter[];
+  units: RentalUnit[];
+  onLinked: (meters: BillPdfMeter[]) => void;
+}) {
+  const queryClient = useQueryClient();
+  const link = useMutation({
+    mutationFn: ({ meter, unit }: { meter: BillPdfMeter; unit: number }) =>
+      api("/api/meters/", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: meter.kind,
+          number: meter.number,
+          rental_unit: unit,
+          prepaid: meter.prepaid,
+          connection: meter.connection,
+          tariff: meter.tariff,
+        }),
+      }),
+    onSuccess: (_saved, { meter, unit }) => {
+      void queryClient.invalidateQueries({ queryKey: ["meters"] });
+      onLinked(meters.map((m) => (m.number === meter.number ? { ...m, rental_unit: unit } : m)));
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const unlinked = meters.filter((meter) => meter.rental_unit === null).length;
+  const name = (id: number) => units.find((unit) => unit.id === id)?.name ?? "Unknown unit";
+
+  return (
+    <div className="grid gap-2 rounded-lg bg-muted/50 p-3">
+      <p className="text-muted-foreground">
+        {unlinked
+          ? `Link ${unlinked === meters.length ? "each meter" : `the ${unlinked} new ${unlinked === 1 ? "meter" : "meters"}`} to its unit, and the bill is split between them.`
+          : "Split between units by these meters. Change them under Meters."}
+      </p>
+      <ul className="grid gap-1.5">
+        {meters.map((meter) => (
+          <li
+            key={meter.number}
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-2"
+          >
+            <span className="min-w-0 truncate">
+              {METER_KINDS[meter.kind]}{" "}
+              <span className="font-medium tabular-nums">{meter.number}</span>
+              <span className="text-muted-foreground">
+                {meter.prepaid ? " · prepaid" : ""}
+                {meter.connection ? ` · ${meter.connection}` : ""}
+                {meter.usage !== null ? ` · ${meter.usage} kL` : ""}
+              </span>
+            </span>
+            {meter.rental_unit !== null ? (
+              <span className="truncate text-right">{name(meter.rental_unit)}</span>
+            ) : (
+              <NativeSelect
+                aria-label={`Unit for meter ${meter.number}`}
+                value=""
+                disabled={link.isPending}
+                onChange={(e) => link.mutate({ meter, unit: Number(e.target.value) })}
+              >
+                <option value="" disabled>
+                  Link to unit…
+                </option>
+                {units
+                  .filter((unit) => unit.is_active)
+                  .map((unit) => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </option>
+                  ))}
+              </NativeSelect>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -835,12 +1146,17 @@ function Source({
   onRawText,
   file,
   onFile,
+  onRead,
+  reading,
 }: {
   bill?: Bill;
   rawText: string;
   onRawText: (value: string) => void;
   file: File | null;
   onFile: (file: File | null) => void;
+  /** Fills the form from the chosen PDF, when there is one. */
+  onRead?: () => void;
+  reading: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -886,6 +1202,11 @@ function Source({
               <X />
             </Button>
           )}
+          {onRead && (
+            <Button type="button" variant="outline" size="sm" disabled={reading} onClick={onRead}>
+              <ScanText /> {reading ? "Reading…" : "Fill from PDF"}
+            </Button>
+          )}
           <Button type="button" variant="outline" size="sm" onClick={() => input.current?.click()}>
             <FileUp /> {name ? "Replace file" : "Add file"}
           </Button>
@@ -911,7 +1232,7 @@ function Source({
         ))}
       <Textarea
         aria-label="Raw bill content"
-        placeholder="Paste the bill's email here to keep it with this entry."
+        placeholder="Add the bill's PDF to fill the form in, or paste its email here to keep it with this entry."
         className="h-[30svh] resize-y font-mono text-xs whitespace-pre"
         wrap="off"
         value={rawText}

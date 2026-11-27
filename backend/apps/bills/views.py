@@ -10,12 +10,15 @@ from rest_framework.response import Response
 from apps.core.filters import RangeFilter
 from apps.realms.access import RealmScopedViewSet
 
-from .models import Bill, BillAttachment, BillTemplate
+from .models import Bill, BillAttachment, BillTemplate, Meter
+from .pdf_reader import ReadError, extract_text, read_bill
 from .serializers import (
     AttachmentUploadSerializer,
+    BillPdfSerializer,
     BillSerializer,
     BillSummarySerializer,
     BillTemplateSerializer,
+    MeterSerializer,
     attachment_type,
 )
 
@@ -35,6 +38,13 @@ class BillTemplateViewSet(RealmScopedViewSet):
                 {"detail": "This is the default template. Make another one the default first."}
             )
         instance.delete()
+
+
+class MeterViewSet(RealmScopedViewSet):
+    """Municipal meters and the units they serve, so a bill PDF's lines find their unit."""
+
+    serializer_class = MeterSerializer
+    queryset = Meter.objects.select_related("rental_unit")
 
 
 class BillViewSet(RealmScopedViewSet):
@@ -60,6 +70,27 @@ class BillViewSet(RealmScopedViewSet):
         return qs.filter(
             in_range.q(date_field="period", unit_field="units__rental_unit")
         ).distinct()
+
+    @action(detail=False, methods=["post"], url_path="read-pdf", parser_classes=[MultiPartParser])
+    def read_pdf(self, request):
+        """Reads a bill PDF into a draft for the editor. Nothing is saved."""
+        upload = BillPdfSerializer(data=request.data, context={"realm": request.realm})
+        upload.is_valid(raise_exception=True)
+        template = upload.validated_data["template"]
+        owners = dict(
+            Meter.objects.filter(realm=request.realm).values_list("number", "rental_unit_id")
+        )
+        try:
+            text = extract_text(upload.validated_data["file"].read())
+            draft = read_bill(text, template.definition, owners)
+        except ReadError as exc:
+            raise ValidationError({"file": [str(exc)]}) from exc
+        existing = Bill.objects.filter(
+            realm=request.realm,
+            account_number=draft["values"]["account_number"],
+            period=draft["period"],
+        ).first()
+        return Response({**draft, "existing_bill": existing.id if existing else None})
 
     @action(detail=True, methods=["get", "post", "delete"], parser_classes=[MultiPartParser])
     def attachment(self, request, pk=None):

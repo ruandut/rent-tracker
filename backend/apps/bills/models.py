@@ -184,6 +184,37 @@ class BillLine(models.Model):
         return self.amount_excl + self.vat
 
 
+class Meter(TenantModel):
+    """A municipal meter, and the rental unit it serves.
+
+    Bill PDFs print meters by number, so this is how their readings and fees find their unit.
+    """
+
+    class Kind(models.TextChoices):
+        WATER = "water", "Water"
+        ELECTRICITY = "electricity", "Electricity"
+
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    number = models.CharField(max_length=50)
+    # Bill lines keep the meter number as text, so a meter can go with its unit.
+    rental_unit = models.ForeignKey(RentalUnit, on_delete=models.CASCADE, related_name="meters")
+    prepaid = models.BooleanField(default=False)
+    # As printed, e.g. "20 Amps" and "PDOM".
+    connection = models.CharField("connection size", max_length=50, blank=True)
+    tariff = models.CharField(max_length=50, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["kind", "number"]
+        constraints = [
+            models.UniqueConstraint(fields=["realm", "number"], name="meter_number_unique_in_realm")
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} meter {self.number}"
+
+
 class BillAttachment(models.Model):
     """The original file.
 

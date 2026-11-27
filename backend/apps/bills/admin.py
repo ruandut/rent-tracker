@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Bill, BillLine, BillTemplate, BillUnit
+from .models import Bill, BillLine, BillTemplate, BillUnit, Meter
 
 
 class BillUnitInline(admin.TabularInline):
@@ -15,6 +15,11 @@ class BillLineInline(admin.TabularInline):
 
 
 admin.site.register(BillTemplate)
+
+
+@admin.register(Meter)
+class MeterAdmin(admin.ModelAdmin):
+    list_display = ["number", "kind", "rental_unit", "connection", "realm"]
 
 
 @admin.register(Bill)

@@ -5,8 +5,10 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 
-from apps.bills.models import Bill, BillTemplate
+from apps.bills.models import Bill, BillTemplate, Meter
+from apps.bills.test_pdf_reader import STATEMENT, bill_pdf
 from apps.ledger.models import Beneficiary, PaymentMethod, RentalUnit, Tag, Transaction
 from apps.notifications.models import DeliverySettings, SummarySchedule
 from apps.realms.models import RealmMembership
@@ -67,6 +69,8 @@ def theirs(db):
         frequency="monthly",
         start_at="2030-01-01T08:00:00Z",
     )
+    # The same number as a meter on the sample bill PDF.
+    meter = Meter.objects.create(realm=realm, kind="water", number="BX1", rental_unit=unit)
     settings = DeliverySettings.load(realm)
     settings.smtp_host = "their.mail"
     settings.save()
@@ -84,6 +88,7 @@ def theirs(db):
         "readings": reading,
         "charges": charge,
         "notifications/schedules": schedule,
+        "meters": meter,
     }
 
 
@@ -98,6 +103,7 @@ RESOURCES = [
     "readings",
     "charges",
     "notifications/schedules",
+    "meters",
 ]
 
 
@@ -123,6 +129,26 @@ def test_details_of_other_realms_are_not_found(api, theirs, resource, method):
 
 def test_bill_attachment_of_other_realm_is_not_found(api, theirs):
     assert api.get(f"/api/bills/{theirs['bills'].id}/attachment/").status_code == 404
+
+
+def test_reading_a_bill_pdf_stays_in_this_realm(api, theirs):
+    # Their bill is for account 1001 in October 2026; so is this PDF.
+    pdf = bill_pdf(STATEMENT.replace("000000001001", "1001"))
+
+    def read(template):
+        file = SimpleUploadedFile("bill.pdf", pdf)
+        return api.post(
+            "/api/bills/read-pdf/", {"file": file, "template": template.id}, format="multipart"
+        )
+
+    assert read(theirs["bill-templates"]).status_code == 400
+    mine = BillTemplate.objects.exclude(realm=theirs["bills"].realm).get(is_default=True)
+    res = read(mine)
+    assert res.status_code == 200, res.json()
+    assert (res.json()["values"]["account_number"], res.json()["period"]) == ("1001", "2026-10-01")
+    assert res.json()["existing_bill"] is None
+    # They have a meter BX1 too, but it isn't this realm's, so it links nothing here.
+    assert {m["rental_unit"] for m in res.json()["meters"]} == {None}
 
 
 def test_schedule_test_send_of_other_realm_is_not_found(api, theirs):
@@ -211,6 +237,18 @@ def test_readings_and_charges_cannot_use_other_realms(api, theirs):
         "amount": "5",
     }
     assert api.post("/api/charges/", charge, format="json").status_code == 400
+
+
+def test_meters_cannot_point_at_other_realms_units(api, theirs):
+    meter = {"kind": "water", "number": "M1", "rental_unit": theirs["units"].id}
+    assert api.post("/api/meters/", meter, format="json").status_code == 400
+
+
+def test_meter_numbers_are_unique_per_realm_not_globally(api, realm, theirs):
+    unit = RentalUnit.objects.create(realm=realm, name="Mine")
+    meter = {"kind": "water", "number": "BX1", "rental_unit": unit.id}
+    assert api.post("/api/meters/", meter, format="json").status_code == 201
+    assert api.post("/api/meters/", meter, format="json").status_code == 400
 
 
 def test_charges_cannot_link_other_realms_payments(api, mine, theirs):
