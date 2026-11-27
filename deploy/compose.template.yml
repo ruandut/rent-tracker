@@ -30,6 +30,13 @@ x-app-env: &app-env
   # deletes them; both mount the backups volume. Copy it off the server too, or set
   # AWS_S3_BACKUP_BUCKET and credentials to send schedules to S3 or an S3-compatible service.
   BACKUP_ROOT: /backups
+  # Hatchet, for the worker and for web: the Django admin creates backup schedules' crons and
+  # queues "Back up now". The hatchet service mints the token into the hatchet_token volume, and
+  # both read it from there when they start. The token names Hatchet's API as localhost:8888,
+  # which is only right inside the hatchet container, so SERVER_URL says where it really is.
+  HATCHET_CLIENT_TLS_STRATEGY: none
+  HATCHET_CLIENT_HOST_PORT: hatchet:7077
+  HATCHET_CLIENT_SERVER_URL: http://hatchet:8888
 
 x-app: &app
   # Published from main by .github/workflows/publish-image.yml.
@@ -124,6 +131,7 @@ services:
       - sh
       - -c
       - >-
+        export HATCHET_CLIENT_TOKEN=$$(cat /token/client-token) &&
         python manage.py migrate --noinput &&
         python manage.py bootstrap_admin &&
         exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 2 --access-logfile -
@@ -136,8 +144,12 @@ services:
       - tunnel  # tunnel-only
     volumes:
       - backups:/backups
+      - hatchet_token:/token:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      # Healthy once its token exists, which web reads when it starts.
+      hatchet:
         condition: service_healthy
     healthcheck:
       test:
@@ -152,10 +164,7 @@ services:
 
   worker:
     <<: *app
-    environment:
-      <<: *app-env
-      HATCHET_CLIENT_TLS_STRATEGY: none
-      HATCHET_CLIENT_HOST_PORT: hatchet:7077
+    environment: *app-env
     command:
       - sh
       - -c
