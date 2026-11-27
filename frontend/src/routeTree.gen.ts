@@ -21,6 +21,7 @@ import { Route as AppChargesIndexRouteImport } from './routes/_app/charges/index
 import { Route as AppPaymentMethodsIndexRouteImport } from './routes/_app/payment-methods/index'
 import { Route as AppRealmsIndexRouteImport } from './routes/_app/realms/index'
 import { Route as AppRealmsRealmIdRouteImport } from './routes/_app/realms/$realmId'
+import { Route as AppSecurityIndexRouteImport } from './routes/_app/security/index'
 import { Route as AppSummariesIndexRouteImport } from './routes/_app/summaries/index'
 import { Route as AppTagsIndexRouteImport } from './routes/_app/tags/index'
 import { Route as AppTemplatesIndexRouteImport } from './routes/_app/templates/index'
@@ -89,6 +90,11 @@ const AppRealmsRealmIdRoute = AppRealmsRealmIdRouteImport.update({
   path: '/realms/$realmId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSecurityIndexRoute = AppSecurityIndexRouteImport.update({
+  id: '/security/',
+  path: '/security/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSummariesIndexRoute = AppSummariesIndexRouteImport.update({
   id: '/summaries/',
   path: '/summaries/',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/charges/': typeof AppChargesIndexRoute
   '/payment-methods/': typeof AppPaymentMethodsIndexRoute
   '/realms/': typeof AppRealmsIndexRoute
+  '/security/': typeof AppSecurityIndexRoute
   '/summaries/': typeof AppSummariesIndexRoute
   '/tags/': typeof AppTagsIndexRoute
   '/templates/': typeof AppTemplatesIndexRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/charges': typeof AppChargesIndexRoute
   '/payment-methods': typeof AppPaymentMethodsIndexRoute
   '/realms': typeof AppRealmsIndexRoute
+  '/security': typeof AppSecurityIndexRoute
   '/summaries': typeof AppSummariesIndexRoute
   '/tags': typeof AppTagsIndexRoute
   '/templates': typeof AppTemplatesIndexRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/_app/charges/': typeof AppChargesIndexRoute
   '/_app/payment-methods/': typeof AppPaymentMethodsIndexRoute
   '/_app/realms/': typeof AppRealmsIndexRoute
+  '/_app/security/': typeof AppSecurityIndexRoute
   '/_app/summaries/': typeof AppSummariesIndexRoute
   '/_app/tags/': typeof AppTagsIndexRoute
   '/_app/templates/': typeof AppTemplatesIndexRoute
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/charges/'
     | '/payment-methods/'
     | '/realms/'
+    | '/security/'
     | '/summaries/'
     | '/tags/'
     | '/templates/'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/charges'
     | '/payment-methods'
     | '/realms'
+    | '/security'
     | '/summaries'
     | '/tags'
     | '/templates'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/_app/charges/'
     | '/_app/payment-methods/'
     | '/_app/realms/'
+    | '/_app/security/'
     | '/_app/summaries/'
     | '/_app/tags/'
     | '/_app/templates/'
@@ -354,6 +366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRealmsRealmIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/security/': {
+      id: '/_app/security/'
+      path: '/security'
+      fullPath: '/security/'
+      preLoaderRoute: typeof AppSecurityIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/summaries/': {
       id: '/_app/summaries/'
       path: '/summaries'
@@ -425,6 +444,7 @@ interface AppRouteChildren {
   AppChargesIndexRoute: typeof AppChargesIndexRoute
   AppPaymentMethodsIndexRoute: typeof AppPaymentMethodsIndexRoute
   AppRealmsIndexRoute: typeof AppRealmsIndexRoute
+  AppSecurityIndexRoute: typeof AppSecurityIndexRoute
   AppSummariesIndexRoute: typeof AppSummariesIndexRoute
   AppTagsIndexRoute: typeof AppTagsIndexRoute
   AppTemplatesIndexRoute: typeof AppTemplatesIndexRoute
@@ -445,6 +465,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppChargesIndexRoute: AppChargesIndexRoute,
   AppPaymentMethodsIndexRoute: AppPaymentMethodsIndexRoute,
   AppRealmsIndexRoute: AppRealmsIndexRoute,
+  AppSecurityIndexRoute: AppSecurityIndexRoute,
   AppSummariesIndexRoute: AppSummariesIndexRoute,
   AppTagsIndexRoute: AppTagsIndexRoute,
   AppTemplatesIndexRoute: AppTemplatesIndexRoute,

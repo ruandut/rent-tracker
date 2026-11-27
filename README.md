@@ -52,8 +52,10 @@ one Compose file, then copy it to the server, which pulls the published app imag
 nothing else. Only the web app is reachable from the network; Django serves the API and the built
 frontend.
 
-Every push to `main` makes GitHub Actions build the image and publish it as
-`ghcr.io/<owner>/<repo>:latest`. In a fork, run the action once, then set the package to public
+Changes reach `main` through pull requests. CI (`.github/workflows/ci.yml`) runs on each pull
+request and again on `main` after the merge: `lint` (ruff, `vp check`, the Dockerfile's lint) and
+`test` (pytest against Postgres 18). Once it passes on `main`, `.github/workflows/publish-image.yml`
+builds the image and publishes it as `ghcr.io/<owner>/<repo>:latest` (and as the commit's SHA). In a fork, run the action once, then set the package to public
 under your GitHub profile's **Packages → Package settings**, so servers can pull it without a
 login.
 
@@ -143,13 +145,21 @@ The app's own protection, which applies either way:
 - **Rate limits:** every API request is limited per account once signed in, and per IP before
   that; sign-in routes have a strict per-IP limit. The counters live in
   a Postgres table, as there's no Redis. Tune them with `THROTTLE_ANON`, `THROTTLE_USER`,
-  `THROTTLE_AUTH` and `THROTTLE_CAPTCHA` (e.g. `10/min`).
+  `THROTTLE_AUTH`, `THROTTLE_CAPTCHA` and `THROTTLE_MFA` (e.g. `10/min`).
+- **Two-factor sign-in:** anyone can turn it on under **Security** (the menu under their name):
+  an authenticator app, security keys or passkeys, and ten single-use recovery codes. Signing in
+  then asks for a code or a key after the password, and so does the Django admin's login (which
+  takes app and recovery codes). Security keys only work on the https address, never over http
+  on the LAN; app codes work on both. `MFA_ENCRYPTION_KEY` encrypts the secrets: keep it, since
+  without it no authenticator app works. A superuser turns off someone's 2FA, say after a lost
+  phone, by deleting their rows under **MFA → Authenticators** in the Django admin.
 - **Headers:** a Content Security Policy that only runs this site's own scripts,
   `X-Frame-Options: DENY`, `nosniff`, a same-origin referrer policy and a Permissions-Policy that
   turns off camera, microphone, location and the like.
 
-All three come from [django-foundation](https://github.com/ruandut/django-foundation), the shared package for the
-captcha, rate limits, headers and the Hatchet worker; `config/settings.py` switches them on.
+All four come from [django-foundation](https://github.com/ruandut/django-foundation), the shared
+package for the captcha, rate limits, two-factor sign-in, headers and the Hatchet worker;
+`config/settings.py` switches them on.
 
 ### Backups
 

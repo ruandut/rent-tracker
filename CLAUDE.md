@@ -4,15 +4,30 @@ Tracks money in and out of a rental bank account, plus utilities and municipal c
 The [README](README.md) covers the stack, setup, commands and deployment; read it first. These are
 the rules that aren't obvious from the code.
 
-## Branches and deployment
+## Git, CI and deployment
 
-- Work on `dev`. Never commit, merge or push to `main` unless Ruan asks.
-- `main` is production. Each push publishes `ghcr.io/ruandut/rent-tracker:latest` through
-  `.github/workflows/publish-image.yml`, and the NAS runs that image.
-- Never build the production image on the Mac. Check it with `docker buildx build --check .`, which
-  lints without building, and let GitHub Actions do the real build.
+The flow: work on `dev` → pull request `dev` → `main` → CI on the PR → merge → CI on `main` → the
+image is published → the NAS updates to it. `main` is production and always green.
+
+- **CI** (`.github/workflows/ci.yml`) runs on every pull request and on every push to `main`, as
+  two jobs side by side: `lint` (ruff check and format, installing only the `lint` dependency
+  group; the frontend's `vp build` and `vp check`; `docker buildx build --check .`) and `test`
+  (pytest against a Postgres 18 service, with throwaway secrets). A newer push to the same ref
+  cancels the older run.
+- **Publish** (`.github/workflows/publish-image.yml`) runs when CI finishes on a push to `main`,
+  and only if it passed. It builds the image from that commit and pushes
+  `ghcr.io/ruandut/rent-tracker:latest` and `:<sha>`; the NAS runs `latest`. "Run workflow" on
+  `main` republishes by hand.
+- **Rulesets on GitHub** (not in the repo; Settings → Rules) should match django-foundation's:
+  "Protect main" requires a pull request, the `lint` and `test` checks and the branch up to date,
+  and blocks force pushes and deletion. The job names `lint` and `test` are those checks: rename
+  or add a required job only together with the ruleset, or every PR waits forever.
+- Work on `dev`. Never commit, merge or push to `main` unless Ruan asks; open a pull request from
+  `dev` instead, and never merge it or turn on auto-merge unless Ruan asks.
+- Never build the production image on the Mac. CI lints it; Publish builds it.
 - The NAS is managed through the UGOS Docker app, so its Compose file gets pasted in by hand. Any
-  change that needs new Compose contents must say so, because a push alone won't apply it.
+  change that needs new Compose contents must say so, because a push alone won't apply it. When
+  the new image needs the new contents (a new required setting), paste them before merging.
 
 ## Secrets
 
@@ -52,6 +67,9 @@ the rules that aren't obvious from the code.
 - Hatchet tasks live in `apps/<app>/tasks.py` under `TASKS = [...]`. They run outside Django's
   request cycle, so call `close_old_connections()` around ORM work.
 - Encrypt stored credentials with `apps/notifications/crypto.py` and never return them from the API.
+- Two-factor sign-in is django-foundation's `foundation.mfa`, under `/api/auth/mfa/`. It belongs to
+  the account, so `apps/accounts/urls.py` swaps its default `InRealm` for `IsAuthenticated`.
+  `MFA_ENCRYPTION_KEY` encrypts its secrets; losing or changing it breaks everyone's app codes.
 
 ## Frontend
 

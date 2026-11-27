@@ -31,8 +31,10 @@ function describe(body: unknown): string | null {
       if (nested) return nested;
       continue;
     }
-    // The captcha's messages (django-foundation's foundation/security/captcha.py) read fine on their own.
-    return field === "detail" || field === "non_field_errors" || field === "altcha"
+    // The captcha's and two-factor sign-in's messages (django-foundation) read fine on their own.
+    return ["detail", "non_field_errors", "altcha", "password", "code", "credential"].includes(
+      field,
+    )
       ? text
       : `${field.replaceAll("_", " ")}: ${text}`;
   }

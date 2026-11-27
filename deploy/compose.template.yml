@@ -19,6 +19,9 @@ x-app-env: &app-env
   CSRF_TRUSTED_ORIGINS: __CSRF_TRUSTED_ORIGINS__
   # Signs the login captcha's challenges.
   ALTCHA_HMAC_KEY: "__ALTCHA_HMAC_KEY__"
+  # Encrypts two-factor sign-in's secrets in the database. Lose it, or change it, and every
+  # authenticator app stops working; regenerating this file keeps it.
+  MFA_ENCRYPTION_KEY: "__MFA_ENCRYPTION_KEY__"
   # With a public hostname: the proxies in front (1 for Cloudflare), so rate limits see each
   # visitor's own IP, and HTTPS on for secure cookies and HSTS. Both 0/false for LAN only.
   NUM_PROXIES: "__NUM_PROXIES__"

@@ -38,6 +38,7 @@ existing() { [[ -f "$OUT" ]] && sed -nE "s/^ *$1: \"([^\"]+)\"$/\1/p" "$OUT" | h
 POSTGRES_PASSWORD="$(existing POSTGRES_PASSWORD)"
 DJANGO_SECRET_KEY="$(existing DJANGO_SECRET_KEY)"
 ALTCHA_HMAC_KEY="$(existing ALTCHA_HMAC_KEY)"
+MFA_ENCRYPTION_KEY="$(existing MFA_ENCRYPTION_KEY)"
 EXISTING_PASSWORD="$(existing ADMIN_PASSWORD)"
 # The earlier answers become the defaults, so a rerun only needs Enter (or no terminal at all).
 grab() { [[ -f "$OUT" ]] && sed -nE "$1" "$OUT" | head -1 || true; }
@@ -126,10 +127,16 @@ fi
 PASSWORD="${PASSWORD:-${EXISTING_PASSWORD:-$(openssl rand -hex 12)}}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -hex 24)}"
 DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-$(openssl rand -hex 32)}"
-# Files from before the captcha have none yet; adding one doesn't touch the other secrets.
+# Files from before the captcha or two-factor sign-in have none yet; adding one doesn't touch the
+# other secrets.
 if [[ -z "$ALTCHA_HMAC_KEY" ]]; then
   ALTCHA_HMAC_KEY="$(openssl rand -hex 32)"
   [[ "$UPDATING" == true ]] && echo "Added a new secret: ALTCHA_HMAC_KEY."
+fi
+if [[ -z "$MFA_ENCRYPTION_KEY" ]]; then
+  # A Fernet key: 32 random bytes in URL-safe base64.
+  MFA_ENCRYPTION_KEY="$(openssl rand -base64 32 | tr '+/' '-_')"
+  [[ "$UPDATING" == true ]] && echo "Added a new secret: MFA_ENCRYPTION_KEY."
 fi
 
 umask 077
@@ -146,6 +153,7 @@ sed \
   -e "s|__DJANGO_SECRET_KEY__|$DJANGO_SECRET_KEY|g" \
   -e "s|__POSTGRES_PASSWORD__|$POSTGRES_PASSWORD|g" \
   -e "s|__ALTCHA_HMAC_KEY__|$ALTCHA_HMAC_KEY|g" \
+  -e "s|__MFA_ENCRYPTION_KEY__|$MFA_ENCRYPTION_KEY|g" \
   -e "s|__TUNNEL_NETWORK__|$TUNNEL_NETWORK|g" \
   "$ROOT/deploy/compose.template.yml" \
   | if [[ -n "$TUNNEL_NETWORK" ]]; then cat; else sed '/# tunnel-only$/d'; fi > "$OUT.tmp"

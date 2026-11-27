@@ -29,10 +29,15 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_altcha",
     # Shared plumbing from django-foundation: Hatchet jobs, the captcha, rate limits, headers,
-    # and database backups (Django admin, superusers only).
+    # database backups (Django admin, superusers only) and two-factor sign-in (on allauth.mfa,
+    # which needs allauth and allauth.account; neither's own sign-in pages are used).
     "foundation.jobs",
     "foundation.security",
     "foundation.backups",
+    "allauth",
+    "allauth.account",
+    "allauth.mfa",
+    "foundation.mfa",
     # Platform apps: shared plumbing, no product features.
     "apps.core",
     "apps.accounts",
@@ -57,6 +62,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # allauth.account refuses to start without it.
+    *foundation.MFA_MIDDLEWARE,
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -152,6 +159,13 @@ MAINTENANCE_MESSAGE = (
     "Rent Tracker is down for maintenance while its data is restored from a backup. "
     "It will be back shortly."
 )
+
+# --- Two-factor sign-in --------------------------------------------------
+# An authenticator app, security keys or passkeys, and recovery codes (foundation.mfa), managed
+# under /api/auth/mfa/ and the SPA's Security page. MFA_ENCRYPTION_KEY (a Fernet key) encrypts
+# their secrets: lose it and everyone's authenticator app stops working. Security keys need https,
+# so they only work on the public hostname, never over http on the LAN.
+globals().update(foundation.mfa(env, issuer="Rent Tracker"))
 
 # The worker's name in Hatchet's dashboard (manage.py hatchet_worker, from foundation.jobs).
 HATCHET_WORKER_NAME = "rent-tracker-worker"

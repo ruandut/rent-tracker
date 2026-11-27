@@ -24,5 +24,8 @@ COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY backend/ ./
 COPY --from=frontend /frontend/dist ./spa
-# Throwaway values: collectstatic only needs settings to load.
-RUN DJANGO_SECRET_KEY=build DATABASE_URL=sqlite:// python manage.py collectstatic --noinput
+# Throwaway values: collectstatic only needs settings to load. None of them reach the image's
+# environment; Compose provides the real ones.
+RUN DJANGO_SECRET_KEY=build DATABASE_URL=sqlite:// \
+    MFA_ENCRYPTION_KEY=YnVpbGQtb25seS10aHJvd2F3YXkta2V5LW5vLXVzZSE= \
+    python manage.py collectstatic --noinput
