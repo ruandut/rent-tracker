@@ -4,30 +4,45 @@ Tracks money in and out of a rental bank account, plus utilities and municipal c
 The [README](README.md) covers the stack, setup, commands and deployment; read it first. These are
 the rules that aren't obvious from the code.
 
-## Git, CI and deployment
+## Git, CI, releases and deployment
 
 The flow: work on `dev` → pull request `dev` → `main` → CI on the PR → merge → CI on `main` → the
-image is published → the NAS updates to it. `main` is production and always green.
+image is published → if `backend/pyproject.toml`'s version is new, that's a release, and the NAS
+can update to it. `main` is always green. The README's "Releases and CI", "Updating" and "Rolling
+back" sections are the user-facing version of this.
 
 - **CI** (`.github/workflows/ci.yml`) runs on every pull request and on every push to `main`, as
   two jobs side by side: `lint` (ruff check and format, installing only the `lint` dependency
   group; the frontend's `vp build` and `vp check`; `docker buildx build --check .`) and `test`
   (pytest against a Postgres 18 service, with throwaway secrets). A newer push to the same ref
   cancels the older run.
-- **Publish** (`.github/workflows/publish-image.yml`) runs when CI finishes on a push to `main`,
-  and only if it passed. It builds the image from that commit and pushes
-  `ghcr.io/ruandut/rent-tracker:latest` and `:<sha>`; the NAS runs `latest`. "Run workflow" on
-  `main` republishes by hand.
+- **Publish image** (`.github/workflows/publish-image.yml`) runs when CI finishes on a push to
+  `main`, and only if it passed. It builds that commit once and pushes `main` and
+  `sha-<commit>`. If `v<version>` isn't a tag yet, the same run is a release: it adds `X.Y.Z`,
+  `X.Y`, `X` and `latest`, then tags the commit and publishes a GitHub Release with notes from
+  the merged PRs. Pre-releases (`a`/`b`/`rc`/`.dev`) get only their own tag, never `latest`.
+  "Run workflow" on `main` rebuilds by hand.
+- **The NAS runs `latest`**, so only releases reach it. The app shows its version and commit at
+  the bottom of the user menu (`/api/auth/me/`'s `app`; the public healthcheck doesn't say).
+- **Releasing** is bumping `version` in `backend/pyproject.toml` (and `uv lock`) in a PR. Bump
+  only when Ruan asks; never tag by hand, and never move or delete a published tag or image
+  version: rolling back pins them. Patch for fixes; minor for features, migrations or new
+  Compose contents (say which in the PR, so the notes carry it); major for breaking changes.
+- **Rolling back** is pinning the Compose file's image to an earlier version (`:0.1.0`) and
+  redeploying, then going back to `latest` once a fix is released. Across a migration that isn't
+  safe, and the admin only restores backups made since the last migration, so fix forward with a
+  patch release instead.
 - **Rulesets on GitHub** (not in the repo; Settings → Rules) should match django-foundation's:
   "Protect main" requires a pull request, the `lint` and `test` checks and the branch up to date,
-  and blocks force pushes and deletion. The job names `lint` and `test` are those checks: rename
-  or add a required job only together with the ruleset, or every PR waits forever.
+  and blocks force pushes and deletion; "Protect release tags" stops `v*` tags being moved or
+  deleted. The job names `lint` and `test` are those checks: rename or add a required job only
+  together with the ruleset, or every PR waits forever.
 - Work on `dev`. Never commit, merge or push to `main` unless Ruan asks; open a pull request from
   `dev` instead, and never merge it or turn on auto-merge unless Ruan asks.
-- Never build the production image on the Mac. CI lints it; Publish builds it.
+- Never build the production image on the Mac. CI lints it; Publish image builds it.
 - The NAS is managed through the UGOS Docker app, so its Compose file gets pasted in by hand. Any
   change that needs new Compose contents must say so, because a push alone won't apply it. When
-  the new image needs the new contents (a new required setting), paste them before merging.
+  a release needs the new contents (a new required setting), paste them before updating.
 
 ## Secrets
 

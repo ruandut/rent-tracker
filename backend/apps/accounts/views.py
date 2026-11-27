@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -10,8 +11,9 @@ from apps.realms.permissions import resolve_membership
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    """Who's signed in, the realm this request works in (null when there's none) and the realms
-    they can switch to."""
+    """Who's signed in, the realm this request works in (null when there's none), the realms
+    they can switch to, and the app's version. Only signed-in people see the version: the public
+    healthcheck doesn't tell strangers what's running."""
     user = request.user
     try:
         current = resolve_membership(request)
@@ -33,6 +35,7 @@ def me(request):
             "realm": _realm(current) if current else None,
             "realms": sorted((_realm(m) for m in realms), key=lambda r: r["name"].lower()),
             "pending_invitations": pending,
+            "app": {"version": settings.APP_VERSION, "commit": settings.APP_COMMIT or None},
         }
     )
 

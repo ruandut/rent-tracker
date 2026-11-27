@@ -1,5 +1,6 @@
 """Django settings. Everything environment-specific comes from backend/.env (see .env.example)."""
 
+import tomllib
 from datetime import timedelta
 from pathlib import Path
 
@@ -13,6 +14,12 @@ env = environ.Env(DEBUG=(bool, False))
 # read_env also exports values into os.environ, which is how the Hatchet SDK finds
 # HATCHET_CLIENT_TOKEN / HATCHET_CLIENT_TLS_STRATEGY / HATCHET_CLIENT_HOST_PORT.
 environ.Env.read_env(BASE_DIR / ".env")
+
+# The release this is (pyproject.toml's version, which a release tags as vX.Y.Z), and the
+# commit the image was built from (APP_COMMIT, set by the Dockerfile; empty locally). The SPA
+# shows both under the user menu, so it's clear what a server runs.
+APP_VERSION = tomllib.loads((BASE_DIR / "pyproject.toml").read_text())["project"]["version"]
+APP_COMMIT = env("APP_COMMIT", default="")[:7]
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DEBUG")

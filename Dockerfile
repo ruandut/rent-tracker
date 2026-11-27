@@ -26,6 +26,9 @@ COPY backend/ ./
 COPY --from=frontend /frontend/dist ./spa
 # Throwaway values: collectstatic only needs settings to load. None of them reach the image's
 # environment; Compose provides the real ones.
+# The commit this image is built from (publish-image.yml passes it); the app shows it.
+ARG APP_COMMIT=""
+ENV APP_COMMIT=$APP_COMMIT
 RUN DJANGO_SECRET_KEY=build DATABASE_URL=sqlite:// \
     MFA_ENCRYPTION_KEY=YnVpbGQtb25seS10aHJvd2F3YXkta2V5LW5vLXVzZSE= \
     python manage.py collectstatic --noinput

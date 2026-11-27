@@ -240,6 +240,15 @@ function UserMenu() {
             >
               <LogOut /> Sign out
             </DropdownMenuItem>
+            {me.data && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  Rent Tracker {me.data.app.version}
+                  {me.data.app.commit && ` · ${me.data.app.commit}`}
+                </DropdownMenuLabel>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
