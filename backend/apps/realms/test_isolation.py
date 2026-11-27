@@ -311,3 +311,21 @@ def test_anonymous_requests_are_still_401(db):
     from rest_framework.test import APIClient
 
     assert APIClient().get("/api/units/").status_code == 401
+
+
+# --- two-factor sign-in: per account, across realms ------------------------------------------
+
+
+def test_nobody_else_can_see_or_change_my_security_keys(api, theirs):
+    from allauth.mfa.models import Authenticator
+
+    other = get_user_model().objects.get(username="other")
+    key = Authenticator.objects.create(
+        user=other, type=Authenticator.Type.WEBAUTHN, data={"name": "Their key", "credential": {}}
+    )
+    assert api.get("/api/auth/mfa/").json()["keys"] == []
+    url = f"/api/auth/mfa/keys/{key.pk}/"
+    assert api.patch(url, {"name": "Mine now"}, format="json").status_code == 404
+    assert api.delete(url, {"password": "pw"}, format="json").status_code == 404
+    key.refresh_from_db()
+    assert key.data["name"] == "Their key"

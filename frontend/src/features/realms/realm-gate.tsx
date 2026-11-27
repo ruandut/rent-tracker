@@ -11,7 +11,7 @@ import { enterRealm } from "./use-realms";
 
 /**
  * Settles which realm this tab works in before any realm data loads, and shows the way in when
- * there is none. The realm screens work without one, so they always render.
+ * there is none. The realm screens and Security work without one, so they always render.
  *
  * The page is keyed by the realm, so switching remounts it and nothing from the old realm can
  * linger on screen (not even as placeholder data while the new realm loads).
@@ -19,7 +19,10 @@ import { enterRealm } from "./use-realms";
 export function RealmGate({ children }: { children: ReactNode }) {
   const me = useMe();
   const realmId = useRealm((s) => s.realmId);
-  const onRealmScreens = !!useMatchRoute()({ to: "/realms", fuzzy: true });
+  const matchRoute = useMatchRoute();
+  // Realm screens, and Security (2FA belongs to the account, not a realm).
+  const onRealmScreens =
+    !!matchRoute({ to: "/realms", fuzzy: true }) || !!matchRoute({ to: "/security" });
   const current = me.data?.realm?.id ?? null;
 
   useEffect(() => {

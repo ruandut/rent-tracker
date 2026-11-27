@@ -16,6 +16,7 @@ import {
   Plus,
   ReceiptText,
   Send,
+  ShieldCheck,
   Tags,
   Users,
   type LucideIcon,
@@ -203,6 +204,7 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
 function UserMenu() {
   const me = useMe();
   const navigate = useNavigate();
+  const closeOnMobile = useCloseOnMobile();
   const queryClient = useQueryClient();
 
   return (
@@ -219,6 +221,15 @@ function UserMenu() {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" className="w-56">
+            <DropdownMenuItem
+              onClick={() => {
+                closeOnMobile();
+                void navigate({ to: "/security" });
+              }}
+            >
+              <ShieldCheck /> Security
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
                 useAuth.getState().clear();

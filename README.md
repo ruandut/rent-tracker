@@ -52,8 +52,10 @@ one Compose file, then copy it to the server, which pulls the published app imag
 nothing else. Only the web app is reachable from the network; Django serves the API and the built
 frontend.
 
-Every push to `main` makes GitHub Actions build the image and publish it as
-`ghcr.io/<owner>/<repo>:latest`. In a fork, run the action once, then set the package to public
+Changes reach `main` through pull requests. CI (`.github/workflows/ci.yml`) runs on each pull
+request and again on `main` after the merge: `lint` (ruff, `vp check`, the Dockerfile's lint) and
+`test` (pytest against Postgres 18). Once it passes on `main`, `.github/workflows/publish-image.yml`
+builds the image and publishes it as `ghcr.io/<owner>/<repo>:latest` (and as the commit's SHA). In a fork, run the action once, then set the package to public
 under your GitHub profile's **Packages → Package settings**, so servers can pull it without a
 login.
 
@@ -118,13 +120,21 @@ into the Docker app. It keeps your existing secrets and only generates ones that
 ### Network and backups
 
 The app speaks plain HTTP. To reach it from the internet, put a reverse proxy or tunnel that
-serves HTTPS in front of it rather than forwarding port 8010 on your router. Then, in the Compose
-file's shared environment:
+serves HTTPS in front of it, such as a Cloudflare Tunnel, rather than forwarding port 8010 on
+your router. `make compose` asks for:
 
-- add the public hostname to `ALLOWED_HOSTS` and its `https://` origin to `CSRF_TRUSTED_ORIGINS`;
-- set `NUM_PROXIES` to the number of proxies in front of the app (usually `1`), so rate limits
-  see each visitor's address instead of the proxy's;
-- set `HTTPS: "true"`, which makes cookies https-only and turns on HSTS.
+- **the public https hostname**, e.g. `app.example.com`. The app then answers both there and on
+  the LAN address and port over http;
+- **how many proxies are in front** (`1` for Cloudflare), so rate limits see each visitor's
+  address instead of the proxy's. With a public hostname, `HTTPS` is on too: cookies become
+  https-only and browsers are told to stick to https;
+- **the Docker network the tunnel container is on**, when the tunnel runs on the same server
+  (e.g. `cloudflared`'s). `web` joins it, so the tunnel can reach `http://rent-tracker-web-1:8000`.
+  Find it in the Docker app under the tunnel container's network settings.
+
+Rerun `make compose` to change these rather than editing the generated file: it keeps them, and
+anything edited by hand is lost the next time the file is regenerated. With `HTTPS` on, the
+Django admin only works over https, because its cookies are https-only.
 
 The app's own protection, which applies either way:
 
@@ -135,13 +145,21 @@ The app's own protection, which applies either way:
 - **Rate limits:** every API request is limited per account once signed in, and per IP before
   that; sign-in routes have a strict per-IP limit. The counters live in
   a Postgres table, as there's no Redis. Tune them with `THROTTLE_ANON`, `THROTTLE_USER`,
-  `THROTTLE_AUTH` and `THROTTLE_CAPTCHA` (e.g. `10/min`).
+  `THROTTLE_AUTH`, `THROTTLE_CAPTCHA` and `THROTTLE_MFA` (e.g. `10/min`).
+- **Two-factor sign-in:** anyone can turn it on under **Security** (the menu under their name):
+  an authenticator app, security keys or passkeys, and ten single-use recovery codes. Signing in
+  then asks for a code or a key after the password, and so does the Django admin's login (which
+  takes app and recovery codes). Security keys only work on the https address, never over http
+  on the LAN; app codes work on both. `MFA_ENCRYPTION_KEY` encrypts the secrets: keep it, since
+  without it no authenticator app works. A superuser turns off someone's 2FA, say after a lost
+  phone, by deleting their rows under **MFA → Authenticators** in the Django admin.
 - **Headers:** a Content Security Policy that only runs this site's own scripts,
   `X-Frame-Options: DENY`, `nosniff`, a same-origin referrer policy and a Permissions-Policy that
   turns off camera, microphone, location and the like.
 
-All three come from [django-foundation](https://github.com/ruandut/django-foundation), the shared package for the
-captcha, rate limits, headers and the Hatchet worker; `config/settings.py` switches them on.
+All four come from [django-foundation](https://github.com/ruandut/django-foundation), the shared
+package for the captcha, rate limits, two-factor sign-in, headers and the Hatchet worker;
+`config/settings.py` switches them on.
 
 ### Backups
 
