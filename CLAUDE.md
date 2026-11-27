@@ -62,6 +62,9 @@ back" sections are the user-facing version of this.
   `depends_on` waits for them. Postgres readiness must be checked over TCP, because it answers on
   its socket during first-time setup, before other containers can connect.
 - Keep volume names fixed, so they don't depend on what the Docker app calls the project.
+- `web` talks to Hatchet as well as `worker`: the Django admin creates backup schedules' crons
+  and queues "Back up now". Both read the token from the `hatchet_token` volume at start, and
+  both need `HATCHET_CLIENT_SERVER_URL`, since the token names Hatchet's API as `localhost:8888`.
 - A real address only belongs in generated output. The repo must stay deployable by anyone.
 
 ## Backend
